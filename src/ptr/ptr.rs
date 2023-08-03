@@ -250,7 +250,8 @@ impl<A: MemPool, T: ?Sized> Ptr<T, A> {
 //     }
 // }
 
-unsafe impl<A: MemPool, T: PSafe> PSafe for Ptr<[T], A> {}
+// FIXME: cross-crate traits with a default impl should not be specialized
+//unsafe impl<A: MemPool, T: PSafe> PSafe for Ptr<[T], A> {}
 
 impl<A: MemPool, T: PSafe + ?Sized> Copy for Ptr<T, A> {}
 

@@ -6,7 +6,7 @@ use syn::spanned::Spanned;
 use syn::*;
 use syn::punctuated::Punctuated;
 use std::collections::HashMap;
-use std::lazy::SyncLazy;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::io::*;
 use std::fs::{File,create_dir_all,read_to_string};
@@ -36,11 +36,11 @@ pub struct Attributes {
     concurrent: bool
 }
 
-pub static mut TYPES: SyncLazy<Mutex<HashMap<TypeName, Contents>>> = SyncLazy::new(|| {
+pub static mut TYPES: LazyLock<Mutex<HashMap<TypeName, Contents>>> = LazyLock::new(|| {
     Mutex::new(HashMap::new())
 });
 
-pub static mut POOLS: SyncLazy<Mutex<HashMap<TypeName, Contents>>> = SyncLazy::new(|| {
+pub static mut POOLS: LazyLock<Mutex<HashMap<TypeName, Contents>>> = LazyLock::new(|| {
     Mutex::new(HashMap::new())
 });
 
@@ -280,7 +280,7 @@ pub fn derive_cbindgen(input: TokenStream) -> TokenStream {
         Ok(g) => g,
         Err(p) => p.into_inner()
     } };
-    let mut entry = all_types.entry(name_str.clone()).or_insert(Contents::default());
+    let entry = all_types.entry(name_str.clone()).or_insert(Contents::default());
     entry.generics = generics.iter().map(|v| v.to_string()).collect();
     let new_sizes: Vec<Ident>  = generics.iter().map(|v| format_ident!("{}_size", v.to_string())).collect();
 
@@ -610,7 +610,7 @@ fn check_generics(m: &TokenStream2, ty: &mut Type, tmpl: &Vec<String>, ty_tmpl: 
             if let Some(last) = p.path.segments.last() {
                 if last.ident == "Journal" {
                     let args = &last.arguments;
-                    let j = quote!(Journal#args);
+                    let j = quote!(Journal #args);
                     if j.to_string() != quote!(Journal<#ty_tmpl>).to_string() {
                         abort!{
                             ty.span(), "invalid use of `Journal`";
@@ -876,7 +876,7 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                                         if let Some(last) = p.path.segments.last() {
                                             if last.ident == "Journal" {
                                                 let args = &last.arguments;
-                                                let j = quote!(Journal#args);
+                                                let j = quote!(Journal #args);
                                                 last_arg_is_journal = j.to_string() == quote!(Journal<#pool_type>).to_string();
                                             }
                                         }

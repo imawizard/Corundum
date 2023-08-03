@@ -3,8 +3,6 @@
 //!
 //! *Consistency invariant*: All integers should present onces in the array
 
-extern crate corundum;
-
 use corundum::RootObj;
 use corundum::open_flags::*;
 use corundum::default::*;

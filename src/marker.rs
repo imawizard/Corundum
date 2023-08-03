@@ -126,7 +126,8 @@ pub unsafe auto trait TxInSafe {}
 pub unsafe auto trait LooseTxInUnsafe {}
 
 /// Any type is okay to be transferred to a transaction
-unsafe impl LooseTxInUnsafe for dyn std::any::Any {}
+// FIXME: traits with a default impl cannot be implemented for trait object
+//unsafe impl LooseTxInUnsafe for dyn std::any::Any {}
 unsafe impl<'a, T> LooseTxInUnsafe for &'a mut T {}
 unsafe impl<T> LooseTxInUnsafe for *const T {}
 unsafe impl<T> LooseTxInUnsafe for *mut T {}

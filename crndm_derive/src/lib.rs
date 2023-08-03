@@ -1,4 +1,4 @@
-#![feature(once_cell)]
+#![feature(lazy_cell)]
 #![feature(type_name_of_val)]
 #![feature(proc_macro_span)]
 

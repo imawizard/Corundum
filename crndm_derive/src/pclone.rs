@@ -26,7 +26,7 @@ pub fn derive_pclone(input: TokenStream) -> TokenStream {
         expanded.push(quote! {
             #[automatically_derived]
             #[allow(unused_qualifications)]
-            impl#impl_generics corundum::PClone<#p> for #name #ty_generics #where_clause {
+            impl #impl_generics corundum::PClone<#p> for #name #ty_generics #where_clause {
                 #[inline]
                 fn pclone(&self, j: &corundum::stm::Journal<#p>) -> Self {
                     #sum

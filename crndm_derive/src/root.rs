@@ -26,7 +26,7 @@ pub fn derive_root(input: TokenStream) -> TokenStream {
         expanded.push(quote! {
             #[automatically_derived]
             #[allow(unused_qualifications)]
-            impl#impl_generics corundum::RootObj<#p> for #name #ty_generics #where_clause {
+            impl #impl_generics corundum::RootObj<#p> for #name #ty_generics #where_clause {
                 #[inline]
                 fn init(j: &corundum::stm::Journal<#p>) -> Self {
                     #sum

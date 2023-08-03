@@ -1,5 +1,6 @@
 #![feature(maybe_uninit_uninit_array)]
 #![allow(dead_code)]
+#![allow(cast_ref_to_mut)]
 
 mod hashmap;
 mod map;
