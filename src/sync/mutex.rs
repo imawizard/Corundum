@@ -3,14 +3,14 @@ use crate::cell::VCell;
 use crate::ptr::Ptr;
 use crate::stm::{Journal, Log, Logger, Notifier};
 use crate::*;
-use std::cell::UnsafeCell;
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::panic::{RefUnwindSafe, UnwindSafe};
-use std::sync::{TryLockError, TryLockResult};
+use lib::cell::UnsafeCell;
+use lib::marker::PhantomData;
+use lib::ops::{Deref, DerefMut};
+use lib::panic::{RefUnwindSafe, UnwindSafe};
+use lib::sync::{TryLockError, TryLockResult};
 
 #[allow(unused_imports)]
-use std::{fmt, intrinsics};
+use lib::{fmt, intrinsics};
 
 /// A transaction-wide recursive mutual exclusion primitive useful for
 /// protecting shared data while transaction is open. Further locking in the
@@ -103,7 +103,7 @@ struct MutexInner {
 impl Default for MutexInner {
     #[cfg(not(any(feature = "no_pthread", windows)))]
     fn default() -> Self {
-        use std::mem::MaybeUninit;
+        use lib::mem::MaybeUninit;
         let mut attr = MaybeUninit::<libc::pthread_mutexattr_t>::uninit();
         let mut lock = libc::PTHREAD_MUTEX_INITIALIZER;
         unsafe {
@@ -217,7 +217,7 @@ impl<T, A: MemPool> PMutex<T, A> {
             }
             #[cfg(any(feature = "no_pthread", windows))]
             {
-                let tid = std::thread::current().id().as_u64().get();
+                let tid = lib::thread::current().id().as_u64().get();
                 while intrinsics::atomic_cxchg_acqrel_acquire(lock, 0, tid).0 != tid {}
             }
             if self.inner.acquire() {
@@ -288,7 +288,7 @@ impl<T, A: MemPool> PMutex<T, A> {
 
             #[cfg(any(feature = "no_pthread", windows))]
             let result = {
-                let tid = std::thread::current().id().as_u64().get();
+                let tid = lib::thread::current().id().as_u64().get();
                 intrinsics::atomic_cxchg_acqrel_acquire(lock, 0, tid).0 == tid
             };
 

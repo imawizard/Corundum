@@ -1,9 +1,9 @@
 use crate::alloc::MemPool;
 use crate::stm::Journal;
 use crate::{PSafe, TxOutSafe};
-use std::fmt;
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
+use lib::fmt;
+use lib::marker::PhantomData;
+use lib::ops::{Deref, DerefMut};
 
 #[derive(Eq)]
 /// An unsafe pointer with dereferencing capability

@@ -1,9 +1,9 @@
 use crate::alloc::*;
 use crate::ll::*;
 use crate::utils::*;
-use std::marker::PhantomData;
-use std::mem;
-use std::ops::{Index, IndexMut};
+use lib::marker::PhantomData;
+use lib::mem;
+use lib::ops::{Index, IndexMut};
 
 #[repr(transparent)]
 #[derive(Clone, Debug)]
@@ -179,8 +179,8 @@ impl<A: MemPool> BuddyAlg<A> {
 
             #[cfg(any(feature = "no_pthread", windows))]
             {
-                let tid = std::thread::current().id().as_u64().get();
-                while std::intrinsics::atomic_cxchg_acqrel_acquire(&mut self.mutex, 0, tid).0 != tid
+                let tid = lib::thread::current().id().as_u64().get();
+                while lib::intrinsics::atomic_cxchg_acqrel_acquire(&mut self.mutex, 0, tid).0 != tid
                 {
                 }
             }
@@ -194,7 +194,7 @@ impl<A: MemPool> BuddyAlg<A> {
             libc::pthread_mutex_unlock(&mut self.mutex.0);
 
             #[cfg(any(feature = "no_pthread", windows))]
-            std::intrinsics::atomic_store_release(&mut self.mutex, 0);
+            lib::intrinsics::atomic_store_release(&mut self.mutex, 0);
         }
     }
 
@@ -238,7 +238,7 @@ impl<A: MemPool> BuddyAlg<A> {
         self.aux.clear();
         self.log64.foreach(|(off, data)| unsafe {
             let n = Self::buddy(off);
-            std::intrinsics::atomic_store_release(&mut n.next, data);
+            lib::intrinsics::atomic_store_release(&mut n.next, data);
         });
         self.log64.clear();
         self.available = self.available_log;
@@ -637,10 +637,10 @@ impl<A: MemPool> BuddyAlg<A> {
     }
 
     pub fn verify(&mut self) -> bool {
-        if std::env::var("VERIFY").is_err() {
+        if lib::env::var("VERIFY").is_err() {
             return true;
         }
-        let loops = std::env::var("VERIFY").unwrap() == "2";
+        let loops = lib::env::var("VERIFY").unwrap() == "2";
         self.lock();
         for idx in 3..self.last_idx + 1 {
             let mut curr = self.buddies[idx];
@@ -1116,17 +1116,18 @@ macro_rules! pool {
     ($mod:ident, $name:ident) => {
         /// The default allocator module
         pub mod $mod {
+            use $crate::prelude::*;
             use memmap::*;
-            use std::collections::hash_map::DefaultHasher;
-            use std::collections::{HashMap,HashSet};
-            use std::fs::OpenOptions;
-            use std::hash::{Hash, Hasher};
-            use std::mem;
-            use std::ops::Range;
-            use std::path::{Path, PathBuf};
-            use std::sync::atomic::{AtomicBool, Ordering};
-            use std::sync::{Arc, Mutex};
-            use std::thread::ThreadId;
+            use lib::collections::hash_map::DefaultHasher;
+            use lib::collections::{HashMap, HashSet};
+            use lib::fs::OpenOptions;
+            use lib::hash::{Hash, Hasher};
+            use lib::mem;
+            use lib::ops::Range;
+            use lib::path::{Path, PathBuf};
+            use lib::sync::atomic::{AtomicBool, Ordering};
+            use lib::sync::{Arc, Mutex};
+            use lib::thread::ThreadId;
             use $crate::ll::*;
             use $crate::result::Result;
             use $crate::utils::read;
@@ -1186,7 +1187,7 @@ macro_rules! pool {
 
             impl BuddyAllocInner {
                 fn init(&mut self, size: usize) {
-                    let id = std::any::type_name::<Self>();
+                    let id = lib::any::type_name::<Self>();
                     let mut s = DefaultHasher::new();
                     id.hash(&mut s);
                     self.flags = 0;
@@ -1198,7 +1199,7 @@ macro_rules! pool {
                     self.size = size;
 
                     type T = BuddyAlg<$name>;
-                    let cpus = if let Some(val) = std::env::var_os("CPUS") {
+                    let cpus = if let Some(val) = lib::env::var_os("CPUS") {
                         val.into_string().unwrap().parse::<usize>().unwrap()
                     } else {
                         num_cpus::get()
@@ -1222,7 +1223,7 @@ macro_rules! pool {
                 fn as_bytes(&self) -> &[u8] {
                     let ptr: *const Self = self;
                     let ptr = ptr as *const u8;
-                    unsafe { std::slice::from_raw_parts(ptr, std::mem::size_of::<Self>()) }
+                    unsafe { lib::slice::from_raw_parts(ptr, lib::mem::size_of::<Self>()) }
                 }
 
                 fn has_root(&self) -> bool {
@@ -1272,7 +1273,7 @@ macro_rules! pool {
                 /// as the instance lives.
                 #[track_caller]
                 pub fn open_impl(filename: &str, no_check: bool) -> Result<PoolGuard<Self>> {
-                    let metadata = std::fs::metadata(filename);
+                    let metadata = lib::fs::metadata(filename);
                     if let Err(e) = &metadata {
                         Err(format!("{}", e))
                     } else {
@@ -1294,7 +1295,7 @@ macro_rules! pool {
 
                             let raw_offset = mmap.get_mut(0).unwrap();
 
-                            let id = std::any::type_name::<BuddyAllocInner>();
+                            let id = lib::any::type_name::<BuddyAllocInner>();
                             let mut s = DefaultHasher::new();
                             id.hash(&mut s);
                             let id = s.finish();
@@ -1359,7 +1360,7 @@ macro_rules! pool {
 
                             let mut mmap = memmap::MmapOptions::new().map_mut(&file).unwrap();
                             let begin = mmap.get_mut(0).unwrap();
-                            std::ptr::write_bytes(begin, 0xff, 8);
+                            lib::ptr::write_bytes(begin, 0xff, 8);
                             BUDDY_START = begin as *const _ as u64;
                             BUDDY_END = u64::MAX;
 
@@ -1434,7 +1435,7 @@ macro_rules! pool {
                 #[allow(unused_unsafe)]
                 #[track_caller]
                 unsafe fn pre_alloc(size: usize) -> (*mut u8, u64, usize, usize) {
-                    let _perf = $crate::__cfg_stat_perf!($crate::stat::Measure::<Self>::Alloc(std::time::Instant::now()));
+                    let _perf = $crate::__cfg_stat_perf!($crate::stat::Measure::<Self>::Alloc(lib::time::Instant::now()));
 
                     static_inner!(BUDDY_INNER, inner, {
                         let cpu = cpu();
@@ -1450,14 +1451,14 @@ macro_rules! pool {
                             "No space left (requested = {}, available= {})",
                             size, Self::available()
                         );
-                        (std::ptr::null_mut(), u64::MAX, 0, 0)
+                        (lib::ptr::null_mut(), u64::MAX, 0, 0)
                     })
                 }
 
                 #[allow(unused_unsafe)]
                 #[track_caller]
                 unsafe fn pre_dealloc(ptr: *mut u8, size: usize) -> usize {
-                    let _perf = $crate::__cfg_stat_perf!($crate::stat::Measure::<Self>::Dealloc(std::time::Instant::now()));
+                    let _perf = $crate::__cfg_stat_perf!($crate::stat::Measure::<Self>::Dealloc(lib::time::Instant::now()));
 
                     static_inner!(BUDDY_INNER, inner, {
                         let off = Self::off(ptr).expect("invalid pointer");
@@ -1625,7 +1626,7 @@ macro_rules! pool {
                 #[allow(unused_unsafe,unused_braces)]
                 unsafe fn recover() {
                     static_inner!(BUDDY_INNER, inner, {
-                        let info_level = std::env::var("RECOVERY_INFO")
+                        let info_level = lib::env::var("RECOVERY_INFO")
                             .unwrap_or("0".to_string())
                             .parse::<u32>()
                             .expect("RECOVERY_INFO should be an unsigned integer");
@@ -1653,7 +1654,7 @@ macro_rules! pool {
 
                         #[allow(unused_mut,unused_variables)]
                         let mut check_double_free = __cfg_delete_history!({
-                            std::collections::HashSet::<u64>::new()
+                            lib::collections::HashSet::<u64>::new()
                         }, { () });
 
                         while let Ok(logs) = Self::deref_mut::<Journal>(inner.journals) {
@@ -1705,7 +1706,7 @@ macro_rules! pool {
                     static_inner!(BUDDY_INNER, inner, {
                         // Replace it with std::any::TypeId::of::<U>() when it
                         // is available in the future for non-'static types
-                        let id = format!("{} ({})", std::any::type_name::<U>(),
+                        let id = format!("{} ({})", lib::any::type_name::<U>(),
                             mem::size_of::<U>());
                         let mut s = DefaultHasher::new();
                         id.hash(&mut s);

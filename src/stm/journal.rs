@@ -4,11 +4,11 @@ use crate::ll::*;
 use crate::ptr::Ptr;
 use crate::stm::*;
 use crate::*;
-use std::collections::HashMap;
-use std::fmt::{self, Debug, Formatter};
+use lib::collections::HashMap;
+use lib::fmt::{self, Debug, Formatter};
 
 #[cfg(feature = "check_double_free")]
-use std::collections::HashSet;
+use lib::collections::HashSet;
 
 #[cfg(all(feature = "use_pspd", feature = "use_vspd"))]
 compile_error!("Cannot use both volatile and persistent scratchpad");
@@ -79,8 +79,8 @@ impl<A: MemPool> !Sync for Journal<A> {}
 impl<A: MemPool> !TxOutSafe for Journal<A> {}
 impl<A: MemPool> !TxInSafe for Journal<A> {}
 impl<A: MemPool> !LooseTxInUnsafe for Journal<A> {}
-impl<A: MemPool> !std::panic::RefUnwindSafe for Journal<A> {}
-impl<A: MemPool> !std::panic::UnwindSafe for Journal<A> {}
+impl<A: MemPool> !lib::panic::RefUnwindSafe for Journal<A> {}
+impl<A: MemPool> !lib::panic::UnwindSafe for Journal<A> {}
 
 #[derive(Clone, Copy)]
 struct Page<A: MemPool> {
@@ -100,9 +100,9 @@ impl<A: MemPool> Page<A> {
         }
         #[cfg(feature = "use_ntstore")]
         unsafe {
-            std::intrinsics::nontemporal_store(&mut self.logs[self.len], Log::new(log, notifier));
+            lib::intrinsics::nontemporal_store(&mut self.logs[self.len], Log::new(log, notifier));
         }
-        persist_with_log::<_, A>(&self.logs[self.len], std::mem::size_of::<Log<A>>(), false);
+        persist_with_log::<_, A>(&self.logs[self.len], lib::mem::size_of::<Log<A>>(), false);
 
         let log = unsafe { Ptr::new_unchecked(&self.logs[self.len]) };
         self.len += 1;
@@ -195,7 +195,7 @@ impl<A: MemPool> Page<A> {
         }
     }
 
-    fn into_iter(&self) -> std::vec::IntoIter<Log<A>> {
+    fn into_iter(&self) -> lib::vec::IntoIter<Log<A>> {
         Vec::from(self.logs).into_iter()
     }
 }
@@ -294,7 +294,7 @@ impl<A: MemPool> Journal<A> {
     #[inline]
     fn new_page(&self) -> Ptr<Page<A>, A> {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::NewPage(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::NewPage(lib::time::Instant::now());
         unsafe {
             let page = Page::<A> {
                 len: 0,
@@ -335,7 +335,7 @@ impl<A: MemPool> Journal<A> {
     pub unsafe fn drop_pages(&mut self) {
         while let Some(page) = self.pages.clone().as_option() {
             let nxt = page.next;
-            let z = A::pre_dealloc(page.as_mut_ptr() as *mut u8, std::mem::size_of::<Page<A>>());
+            let z = A::pre_dealloc(page.as_mut_ptr() as *mut u8, lib::mem::size_of::<Page<A>>());
             A::log64(A::off_unchecked(self.pages.off_ref()), nxt.off(), z);
             A::perform(z);
         }
@@ -568,7 +568,7 @@ impl<A: MemPool> Journal<A> {
                     check_double_free,
                 );
                 let z =
-                    A::pre_dealloc(page.as_mut_ptr() as *mut u8, std::mem::size_of::<Page<A>>());
+                    A::pre_dealloc(page.as_mut_ptr() as *mut u8, lib::mem::size_of::<Page<A>>());
                 A::log64(A::off_unchecked(self.pages.off_ref()), nxt.off(), z);
                 A::perform(z);
 
@@ -588,7 +588,7 @@ impl<A: MemPool> Journal<A> {
         {
             A::drop_journal(self);
             A::journals(|journals| {
-                journals.remove(&std::thread::current().id());
+                journals.remove(&lib::thread::current().id());
             });
         }
     }
@@ -701,11 +701,11 @@ impl<A: MemPool> Journal<A> {
     where
         Self: Sized,
     {
-        let tid = std::thread::current().id();
+        let tid = lib::thread::current().id();
         A::journals(|journals| {
             if !journals.contains_key(&tid) && create {
                 #[cfg(feature = "stat_perf")]
-                let _perf = crate::stat::Measure::<A>::NewJournal(std::time::Instant::now());
+                let _perf = crate::stat::Measure::<A>::NewJournal(lib::time::Instant::now());
 
                 let (journal, offset, _, z) = A::atomic_new(Journal::<A>::new(A::tx_gen()));
                 journal.enter_into(A::journals_head(), z);
@@ -740,7 +740,7 @@ impl<A: MemPool> Journal<A> {
         Self: Sized,
     {
         unsafe {
-            let tid = std::thread::current().id();
+            let tid = lib::thread::current().id();
             A::journals(|journals| {
                 if !journals.contains_key(&tid) {
                     None

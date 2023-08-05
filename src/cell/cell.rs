@@ -2,11 +2,11 @@ use crate::alloc::MemPool;
 use crate::clone::PClone;
 use crate::stm::{Journal, Logger};
 use crate::*;
-use std::cell::UnsafeCell;
-use std::cmp::Ordering;
-use std::marker::PhantomData;
-use std::panic::{RefUnwindSafe, UnwindSafe};
-use std::{fmt, mem, ptr};
+use lib::cell::UnsafeCell;
+use lib::cmp::Ordering;
+use lib::marker::PhantomData;
+use lib::panic::{RefUnwindSafe, UnwindSafe};
+use lib::{fmt, mem, ptr};
 
 #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
 use crate::cell::TCell;

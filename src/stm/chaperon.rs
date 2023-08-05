@@ -1,15 +1,15 @@
 use crate::cell::LazyCell;
 use crate::result::Result;
 use crate::{utils, TxInSafe, TxOutSafe};
-use std::collections::hash_map::HashMap;
-use std::fmt::{self, Debug};
-use std::fs::OpenOptions;
-use std::io::{self, Error, Write};
-use std::panic::{RefUnwindSafe, UnwindSafe};
-use std::path::Path;
-use std::sync::Mutex;
-use std::thread::ThreadId;
-use std::{mem, panic, ptr, slice, str, thread};
+use lib::collections::hash_map::HashMap;
+use lib::fmt::{self, Debug};
+use lib::fs::OpenOptions;
+use lib::io::{self, Error, Write};
+use lib::panic::{RefUnwindSafe, UnwindSafe};
+use lib::path::Path;
+use lib::sync::Mutex;
+use lib::thread::ThreadId;
+use lib::{mem, panic, ptr, slice, str, thread};
 
 const MAX_TRANS: usize = 4096;
 
@@ -160,7 +160,7 @@ impl Chaperon {
     fn as_bytes(&self) -> &[u8] {
         let ptr = self as *const Self;
         let ptr = ptr as *const u8;
-        unsafe { std::slice::from_raw_parts(ptr, std::mem::size_of::<Self>()) }
+        unsafe { lib::slice::from_raw_parts(ptr, lib::mem::size_of::<Self>()) }
     }
 
     /// Loads a chaperon file
@@ -222,7 +222,7 @@ impl Chaperon {
     }
 
     fn close(&self) {
-        // std::fs::remove_file(self.filename()).unwrap();
+        // lib::fs::remove_file(self.filename()).unwrap();
     }
 
     /// Returns the chaperon filename
@@ -392,7 +392,7 @@ impl Drop for Chaperon {
 }
 
 impl Debug for Chaperon {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut lib::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{{ filename: {}, len: {}, [", self.filename(), self.len)?;
         for i in 0..self.len {
             write!(f, "{}{}", if i == 0 { "" } else { ", " }, self.done[i])?;

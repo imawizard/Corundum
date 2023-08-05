@@ -26,6 +26,6 @@ where
     /// Assuming that self is also on PM (e.g. the root object), the size of allocated persistent memory
     /// includes the size of all objects pointed by this object and the size `Self`.
     fn size_of_pmem() -> usize {
-        Self::size_of() + std::mem::size_of::<Self>()
+        Self::size_of() + lib::mem::size_of::<Self>()
     }
 }

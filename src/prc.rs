@@ -151,16 +151,16 @@ use crate::clone::*;
 use crate::ptr::Ptr;
 use crate::stm::*;
 use crate::*;
-use std::cmp::Ordering;
-use std::fmt::{self, Debug};
-use std::hash::Hash;
-use std::hash::Hasher;
-use std::marker::PhantomData;
-use std::mem::MaybeUninit;
-use std::ops::Deref;
-use std::panic::RefUnwindSafe;
-use std::panic::UnwindSafe;
-use std::*;
+use lib::cmp::Ordering;
+use lib::fmt::{self, Debug};
+use lib::hash::Hash;
+use lib::hash::Hasher;
+use lib::marker::PhantomData;
+use lib::mem::MaybeUninit;
+use lib::ops::Deref;
+use lib::panic::RefUnwindSafe;
+use lib::panic::UnwindSafe;
+use lib::*;
 
 #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
 use crate::cell::TCell;
@@ -210,7 +210,7 @@ impl<T: ?Sized, A: MemPool> !VSafe for PrcBox<T, A> {}
 impl<T: ?Sized, A: MemPool> !PSend for PrcBox<T, A> {}
 
 unsafe fn set_data_ptr<T: ?Sized, U>(mut ptr: *mut T, data: *mut U) -> *mut T {
-    std::ptr::write(&mut ptr as *mut _ as *mut *mut u8, data as *mut u8);
+    lib::ptr::write(&mut ptr as *mut _ as *mut *mut u8, data as *mut u8);
     ptr
 }
 
@@ -424,7 +424,7 @@ impl<T: PSafe, A: MemPool> Prc<T, A> {
     pub fn new_zeroed(journal: &Journal<A>) -> Prc<mem::MaybeUninit<T>, A> {
         unsafe {
             let mut uninit = Self::new_uninit(journal);
-            std::ptr::write_bytes::<T>(Prc::get_mut_unchecked(&mut uninit).as_mut_ptr(), 0, 1);
+            lib::ptr::write_bytes::<T>(Prc::get_mut_unchecked(&mut uninit).as_mut_ptr(), 0, 1);
             uninit
         }
     }
@@ -852,14 +852,14 @@ unsafe impl<#[may_dangle] T: PSafe + ?Sized, A: MemPool> Drop for Prc<T, A> {
             if self.strong() == 0 {
                 // TODO: Add "or it is unreachable from the root"
                 // destroy the contained object
-                std::ptr::drop_in_place(&mut self.ptr.as_mut().value);
+                lib::ptr::drop_in_place(&mut self.ptr.as_mut().value);
 
                 self.dec_weak(j);
                 if self.weak() == 0 {
                     A::free(self.ptr.as_mut());
 
                     #[cfg(not(feature = "no_volatile_pointers"))]
-                    std::ptr::drop_in_place(&mut self.ptr.as_mut().vlist);
+                    lib::ptr::drop_in_place(&mut self.ptr.as_mut().vlist);
                 }
             }
         }
@@ -1033,7 +1033,7 @@ impl<T: ?Sized, A: MemPool> !PSend for Weak<T, A> {}
 impl<T: PSafe, A: MemPool> Weak<T, A> {
     pub fn as_raw(&self) -> *const T {
         match self.inner() {
-            None => std::ptr::null(),
+            None => lib::ptr::null(),
             Some(inner) => {
                 let offset = data_offset_sized::<T, A>();
                 let ptr = inner as *const PrcBox<T, A>;
@@ -1129,7 +1129,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Drop for Weak<T, A> {
                     A::free(self.ptr.as_mut());
 
                     #[cfg(not(feature = "no_volatile_pointers"))]
-                    std::ptr::drop_in_place(&mut self.ptr.as_mut().vlist);
+                    lib::ptr::drop_in_place(&mut self.ptr.as_mut().vlist);
                 }
             }
         }
@@ -1198,7 +1198,7 @@ trait PrcBoxPtr<T: PSafe + ?Sized, A: MemPool> {
         let strong = inner.strong;
 
         if strong == 0 || strong == usize::max_value() {
-            std::process::abort();
+            lib::process::abort();
         }
         #[cfg(not(feature = "no_log_rc"))]
         self.log_count(_journal);
@@ -1242,7 +1242,7 @@ trait PrcBoxPtr<T: PSafe + ?Sized, A: MemPool> {
         let weak = self.weak();
 
         if weak == 0 || weak == usize::max_value() {
-            std::process::abort();
+            lib::process::abort();
         }
 
         #[cfg(not(feature = "no_log_rc"))]
@@ -1339,7 +1339,7 @@ fn data_offset_sized<T, A: MemPool>() -> isize {
 
 #[inline]
 fn data_offset_align<A: MemPool>(align: usize) -> isize {
-    let layout = std::alloc::Layout::new::<PrcBox<(), A>>();
+    let layout = lib::alloc::Layout::new::<PrcBox<(), A>>();
     (layout.size() + layout.padding_needed_for(align)) as isize
 }
 
@@ -1401,8 +1401,8 @@ impl<T: PSafe + ?Sized, A: MemPool> VWeak<T, A> {
         T: Sized,
     {
         VWeak {
-            ptr: std::ptr::null(),
-            valid: std::ptr::null_mut(),
+            ptr: lib::ptr::null(),
+            valid: lib::ptr::null_mut(),
             gen: u32::MAX,
         }
     }
@@ -1492,7 +1492,7 @@ impl VWeakList {
         let new = Box::into_raw(Box::new(VWeakValid {
             valid: true,
             next: self.head,
-            prev: std::ptr::null_mut(),
+            prev: lib::ptr::null_mut(),
             list: self as *mut Self,
         }));
         if !self.head.is_null() {
@@ -1508,7 +1508,7 @@ impl VWeakList {
 impl Default for VWeakList {
     fn default() -> Self {
         VWeakList {
-            head: std::ptr::null_mut(),
+            head: lib::ptr::null_mut(),
         }
     }
 }
@@ -1519,7 +1519,7 @@ impl Drop for VWeakList {
             let mut curr = self.head;
             while !curr.is_null() {
                 (*curr).valid = false;
-                (*curr).list = std::ptr::null_mut();
+                (*curr).list = lib::ptr::null_mut();
                 curr = (*curr).next;
             }
         }

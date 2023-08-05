@@ -6,15 +6,15 @@ use crate::convert::PFrom;
 use crate::stm::*;
 use crate::vec::Vec;
 use crate::RootObj;
-use std::borrow::{Cow, ToOwned};
-use std::char::decode_utf16;
-use std::ops::{self, Index, IndexMut, RangeBounds};
-use std::str::pattern::Pattern;
-use std::string::FromUtf8Error;
-use std::string::String as StdString;
-use std::string::ToString as StdToString;
-use std::vec::Vec as StdVec;
-use std::{fmt, hash, ptr, str};
+use lib::borrow::{Cow, ToOwned};
+use lib::char::decode_utf16;
+use lib::ops::{self, Index, IndexMut, RangeBounds};
+use lib::str::pattern::Pattern;
+use lib::string::FromUtf8Error;
+use lib::string::String as StdString;
+use lib::string::ToString as StdToString;
+use lib::vec::Vec as StdVec;
+use lib::{fmt, hash, ptr, str};
 
 /// A UTF-8 encoded, growable string.
 ///
@@ -1958,7 +1958,7 @@ mod test {
         let _ = A::transaction(|j| {
             println!("RootObj = {}", root);
             let mut root = root.borrow_mut(j);
-            // std::process::exit(1);
+            // lib::process::exit(1);
             *root = 5129483505_u64.to_pstring(j);
             println!("RootObj = {}", root);
             // panic!("test");

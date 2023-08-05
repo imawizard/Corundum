@@ -1,16 +1,16 @@
 #![cfg(target_arch = "x86_64")]
 
 use crate::cell::LazyCell;
-use std::any::type_name;
-use std::any::Any;
-use std::collections::HashMap;
-use std::fmt::Display;
-use std::io::*;
-use std::marker::PhantomData;
-use std::ops::AddAssign;
-use std::sync::Mutex;
-use std::thread::{current, ThreadId};
-use std::time::Instant;
+use lib::any::type_name;
+use lib::any::Any;
+use lib::collections::HashMap;
+use lib::fmt::Display;
+use lib::io::*;
+use lib::marker::PhantomData;
+use lib::ops::AddAssign;
+use lib::sync::Mutex;
+use lib::thread::{current, ThreadId};
+use lib::time::Instant;
 
 #[derive(Clone)]
 struct Data {
@@ -101,7 +101,7 @@ fn hist_enabled() -> bool {
         if let Some(hist) = &mut HIST {
             *hist
         } else {
-            if let Some(val) = std::env::var_os("HIST") {
+            if let Some(val) = lib::env::var_os("HIST") {
                 HIST = Some(val.into_string().unwrap().parse::<i32>().unwrap() == 1);
                 true
             } else {
@@ -118,7 +118,7 @@ fn points_enabled() -> bool {
         if let Some(points) = &mut POINTS {
             *points
         } else {
-            if let Some(val) = std::env::var_os("POINTS") {
+            if let Some(val) = lib::env::var_os("POINTS") {
                 POINTS = Some(val.into_string().unwrap().parse::<i32>().unwrap() == 1);
                 true
             } else {
@@ -327,8 +327,8 @@ impl Stat {
     pub fn save_histograms(&self, _path: &str) -> Result<()> {
         if hist_enabled() {
             for (k, v) in &self.custom {
+                use lib::fs::File;
                 use prelude::*;
-                use std::fs::File;
 
                 let mut f = File::create(format!("{}/{}_hist.csv", _path, k))?;
                 f.write(b"lat,freq\n")?;
@@ -367,7 +367,7 @@ fn div(a: u64, b: u64) -> f64 {
 }
 
 impl Display for Stat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut lib::fmt::Formatter<'_>) -> lib::result::Result<(), lib::fmt::Error> {
         #[cfg(feature = "stat_perf")]
         {
             writeln!(
@@ -571,7 +571,7 @@ macro_rules! measure {
         let __tag = $tag;
         {
             #[allow(unused_import)]
-            use std::time::Instant;
+            use $crate::lib::time::Instant;
 
             let mut _perf = Measure::<P>::Batch(Instant::now(), __tag, $n as u64);
             let mut _dummy = Instant::now();
@@ -587,7 +587,7 @@ macro_rules! measure {
         let __tag = $tag;
         {
             #[allow(unused_import)]
-            use std::time::Instant;
+            use $crate::lib::time::Instant;
 
             let mut _perf = Measure::<P>::Custom(Instant::now(), __tag);
             let mut _dummy = Instant::now();

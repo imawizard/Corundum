@@ -3,15 +3,15 @@ use crate::result::Result;
 use crate::stm::*;
 use crate::utils::*;
 use crate::*;
-use std::collections::HashMap;
-use std::fs::OpenOptions;
-use std::marker::PhantomData;
-use std::ops::Range;
-use std::panic::RefUnwindSafe;
-use std::panic::UnwindSafe;
-use std::path::Path;
-use std::thread::ThreadId;
-use std::{mem, ptr};
+use lib::collections::HashMap;
+use lib::fs::OpenOptions;
+use lib::marker::PhantomData;
+use lib::ops::Range;
+use lib::panic::RefUnwindSafe;
+use lib::panic::UnwindSafe;
+use lib::path::Path;
+use lib::thread::ThreadId;
+use lib::{mem, ptr};
 
 /// Default pool memory size to be used while creating a new pool
 pub const DEFAULT_POOL_SIZE: u64 = 8 * 1024 * 1024;
@@ -201,7 +201,7 @@ where
 {
     /// Returns the name of the pool type
     fn name() -> &'static str {
-        std::any::type_name::<Self>()
+        lib::any::type_name::<Self>()
     }
 
     /// Opens a new pool without any root object. This function is for testing
@@ -372,7 +372,7 @@ where
         }
         let mut format = !Path::new(path).exists() && ((flags & O_F) != 0);
         if ((flags & O_C) != 0) || ((flags & O_CNE != 0) && !Path::new(path).exists()) {
-            let _ = std::fs::remove_file(path);
+            let _ = lib::fs::remove_file(path);
             create_file(path, size)?;
             format = (flags & O_F) != 0;
         }
@@ -412,7 +412,7 @@ where
     #[inline]
     unsafe fn get_unchecked<'a, T: 'a + ?Sized>(off: u64) -> &'a T {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<Self>::Deref(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<Self>::Deref(lib::time::Instant::now());
 
         #[cfg(any(feature = "check_access_violation", debug_assertions))]
         assert!(Self::allocated(off, 1), "Access Violation (0x{:x})", off);
@@ -429,7 +429,7 @@ where
     #[track_caller]
     unsafe fn get_mut_unchecked<'a, T: 'a + ?Sized>(off: u64) -> &'a mut T {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<Self>::Deref(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<Self>::Deref(lib::time::Instant::now());
 
         #[cfg(any(feature = "check_access_violation", debug_assertions))]
         assert!(Self::allocated(off, 1), "Access Violation (0x{:x})", off);
@@ -445,13 +445,13 @@ where
     #[inline]
     unsafe fn deref_slice_unchecked<'a, T: 'a>(off: u64, len: usize) -> &'a [T] {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<Self>::Deref(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<Self>::Deref(lib::time::Instant::now());
 
         if off == u64::MAX {
             &[]
         } else {
             let ptr = utils::read_addr(Self::start() + off);
-            let res = std::slice::from_raw_parts(ptr, len);
+            let res = lib::slice::from_raw_parts(ptr, len);
 
             #[cfg(any(feature = "check_access_violation", debug_assertions))]
             assert!(
@@ -474,13 +474,13 @@ where
     #[inline]
     unsafe fn deref_slice_unchecked_mut<'a, T: 'a>(off: u64, len: usize) -> &'a mut [T] {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<Self>::Deref(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<Self>::Deref(lib::time::Instant::now());
 
         if off == u64::MAX {
             &mut []
         } else {
             let ptr = utils::read_addr(Self::start() + off);
-            let res = std::slice::from_raw_parts_mut(ptr, len);
+            let res = lib::slice::from_raw_parts_mut(ptr, len);
 
             #[cfg(any(feature = "check_access_violation", debug_assertions))]
             assert!(
@@ -561,7 +561,7 @@ where
     fn valid<T: ?Sized>(p: *const T) -> bool {
         let rng = Self::rng();
         let start = p as *const u8 as u64;
-        // let end = start + std::mem::size_of_val(p) as u64;
+        // let end = start + lib::mem::size_of_val(p) as u64;
         start >= rng.start && start < rng.end
         // && end >= rng.start && end < rng.end
     }
@@ -790,7 +790,7 @@ where
     unsafe fn alloc_zeroed(size: usize) -> *mut u8 {
         let (ptr, _, _) = Self::alloc(size);
         if !ptr.is_null() {
-            std::ptr::write_bytes(ptr, 0, size);
+            lib::ptr::write_bytes(ptr, 0, size);
         }
         ptr
     }
@@ -839,7 +839,7 @@ where
             panic!("Memory exhausted");
         }
         Self::drop_on_failure(off, len, z);
-        std::ptr::copy_nonoverlapping(x as *const T as *const u8, p, s);
+        lib::ptr::copy_nonoverlapping(x as *const T as *const u8, p, s);
         log.set(off, len, z);
         Self::perform(z);
         &mut *utils::read(p)
@@ -859,7 +859,7 @@ where
             panic!("Memory exhausted");
         }
         Self::drop_on_failure(off, len, z);
-        std::ptr::copy_nonoverlapping(x as *const [T] as *const u8, p, s);
+        lib::ptr::copy_nonoverlapping(x as *const [T] as *const u8, p, s);
         log.set(off, len, z);
         Self::perform(z);
         &mut *utils::read(p)
@@ -867,7 +867,7 @@ where
 
     /// Allocates new memory and then places `x` into it without realizing the allocation
     unsafe fn atomic_new<'a, T: 'a>(x: T) -> (&'a mut T, u64, usize, usize) {
-        log!(Self, White, "ALLOC", "TYPE: {}", std::any::type_name::<T>());
+        log!(Self, White, "ALLOC", "TYPE: {}", lib::any::type_name::<T>());
 
         let size = mem::size_of::<T>();
         let (raw, off, len, z) = Self::pre_alloc(size);
@@ -887,7 +887,7 @@ where
             White,
             "ALLOC",
             "TYPE: [{}; {}]",
-            std::any::type_name::<T>(),
+            lib::any::type_name::<T>(),
             x.len()
         );
 
@@ -902,7 +902,7 @@ where
             x.len() * mem::size_of::<T>().max(1),
         );
         (
-            std::slice::from_raw_parts_mut(ptr.cast(), x.len()),
+            lib::slice::from_raw_parts_mut(ptr.cast(), x.len()),
             off,
             size,
             z,
@@ -963,10 +963,10 @@ where
     where
         Self: MemPool,
     {
-        // std::ptr::drop_in_place(x);
+        // lib::ptr::drop_in_place(x);
         let off = Self::off_unchecked(x);
         let len = mem::size_of_val(x);
-        if std::thread::panicking() {
+        if lib::thread::panicking() {
             Log::drop_on_abort(off, len, &*Journal::<Self>::current(true).unwrap().0);
         } else {
             Log::drop_on_commit(off, len, &*Journal::<Self>::current(true).unwrap().0);
@@ -1179,7 +1179,7 @@ where
         }
     }
 
-    unsafe fn dealloc_history() -> *mut std::collections::HashSet<u64> {
+    unsafe fn dealloc_history() -> *mut lib::collections::HashSet<u64> {
         unimplemented!()
     }
 
@@ -1240,7 +1240,7 @@ where
 
         let mut chaperoned = false;
         let cptr = &mut chaperoned as *mut bool;
-        let res = std::panic::catch_unwind(|| {
+        let res = lib::panic::catch_unwind(|| {
             let chaperon = Chaperon::current();
             if let Some(ptr) = chaperon {
                 // FIXME: Chaperone session is corrupted. fix it.
@@ -1251,7 +1251,7 @@ where
                     body({
                         #[cfg(feature = "stat_perf")]
                         let _perf =
-                            crate::stat::Measure::<Self>::Logging(std::time::Instant::now());
+                            crate::stat::Measure::<Self>::Logging(lib::time::Instant::now());
 
                         let j = Journal::<Self>::current(true).unwrap();
                         *j.1 += 1;
@@ -1264,7 +1264,7 @@ where
             } else {
                 body({
                     #[cfg(feature = "stat_perf")]
-                    let _perf = crate::stat::Measure::<Self>::Logging(std::time::Instant::now());
+                    let _perf = crate::stat::Measure::<Self>::Logging(lib::time::Instant::now());
 
                     unsafe {
                         let j = Journal::<Self>::current(true).unwrap();
@@ -1277,7 +1277,7 @@ where
         });
 
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<Self>::Logging(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<Self>::Logging(lib::time::Instant::now());
 
         #[cfg(feature = "check_allocator_cyclic_links")]
         debug_assert!(Self::verify());

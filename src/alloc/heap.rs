@@ -4,12 +4,12 @@ use crate::result::Result;
 use crate::stm::Chaperon;
 use crate::utils::*;
 use crate::*;
-use std::alloc::{alloc, dealloc, Layout};
-use std::collections::HashMap;
-use std::ops::Range;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::thread::ThreadId;
+use lib::alloc::{alloc, dealloc, Layout};
+use lib::collections::HashMap;
+use lib::ops::Range;
+use lib::sync::Arc;
+use lib::sync::Mutex;
+use lib::thread::ThreadId;
 
 pub use crate::alloc::*;
 
@@ -118,7 +118,7 @@ unsafe impl MemPoolTraits for Heap {
         flags: u32,
     ) -> Result<RootCell<'a, U, Self>> {
         let slf = Self::open_no_root(path, flags)?;
-        if std::mem::size_of::<U>() == 0 {
+        if lib::mem::size_of::<U>() == 0 {
             Err("root type cannot be a ZST".to_string())
         } else {
             unsafe {
@@ -152,7 +152,7 @@ unsafe impl MemPoolTraits for Heap {
     unsafe fn recover() {}
 
     unsafe fn drop_journal(journal: &mut Journal) {
-        let tid = std::thread::current().id();
+        let tid = lib::thread::current().id();
         JOURNALS.as_mut().unwrap().remove(&tid);
         Self::free_nolog(journal);
     }

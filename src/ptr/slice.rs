@@ -1,6 +1,6 @@
 use crate::*;
-use std::marker::PhantomData;
-use std::ops::Index;
+use lib::marker::PhantomData;
+use lib::ops::Index;
 
 /// A persistent fat pointer with offset and capacity
 #[derive(Eq)]
@@ -66,21 +66,21 @@ impl<T: PSafe, A: MemPool> Slice<T, A> {
     #[inline]
     pub fn get(&self, i: usize) -> &T {
         assert!(i < self.cap, "index out of range");
-        unsafe { A::deref_mut(self.off + i as u64 * std::mem::size_of::<T>() as u64).unwrap() }
+        unsafe { A::deref_mut(self.off + i as u64 * lib::mem::size_of::<T>() as u64).unwrap() }
     }
 
     /// Returns a mutable reference to the object at index `i`
     #[inline]
     pub fn get_mut(&self, i: usize) -> &mut T {
         assert!(i < self.cap, "index out of range");
-        unsafe { A::deref_mut(self.off + i as u64 * std::mem::size_of::<T>() as u64).unwrap() }
+        unsafe { A::deref_mut(self.off + i as u64 * lib::mem::size_of::<T>() as u64).unwrap() }
     }
 
     /// Returns a mutable reference to the object at index `i` without checking
     /// the boundaries
     #[inline]
     pub unsafe fn get_unchecked(&self, i: usize) -> &mut T {
-        A::get_mut_unchecked(self.off + i as u64 * std::mem::size_of::<T>() as u64)
+        A::get_mut_unchecked(self.off + i as u64 * lib::mem::size_of::<T>() as u64)
     }
 
     /// Returns the offset
@@ -242,7 +242,7 @@ impl<A: MemPool, T: PSafe> PClone<A> for Slice<T, A> {
 
 impl<A: MemPool, T: PSafe> PmemUsage for Slice<T, A> {
     fn size_of() -> usize {
-        std::mem::size_of::<T>() + std::mem::size_of::<Self>()
+        lib::mem::size_of::<T>() + lib::mem::size_of::<Self>()
     }
 }
 

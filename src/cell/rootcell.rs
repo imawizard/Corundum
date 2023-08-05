@@ -1,12 +1,12 @@
 use crate::alloc::{MemPool, PoolGuard};
 use crate::stm::Journal;
 use crate::*;
-use std::cmp::*;
-use std::fmt::{Debug, Display, Formatter};
-use std::ops::Deref;
-use std::panic::RefUnwindSafe;
-use std::panic::UnwindSafe;
-use std::sync::Arc;
+use lib::cmp::*;
+use lib::fmt::{Debug, Display, Formatter};
+use lib::ops::Deref;
+use lib::panic::RefUnwindSafe;
+use lib::panic::UnwindSafe;
+use lib::sync::Arc;
 
 /// Root object container
 ///
@@ -78,13 +78,13 @@ impl<T: PSafe, A: MemPool> Deref for RootCell<'_, T, A> {
 }
 
 impl<T: Debug + PSafe, A: MemPool> Debug for RootCell<'_, T, A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> lib::fmt::Result {
         self.deref().fmt(f)
     }
 }
 
 impl<T: Display + PSafe, A: MemPool> Display for RootCell<'_, T, A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> lib::fmt::Result {
         self.deref().fmt(f)
     }
 }

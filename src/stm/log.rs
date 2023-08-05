@@ -4,12 +4,12 @@ use crate::ptr::Ptr;
 use crate::ptr::Slice;
 use crate::stm::*;
 use crate::*;
-use std::clone::Clone;
-use std::fmt::{self, Debug};
-use std::ptr;
+use lib::clone::Clone;
+use lib::fmt::{self, Debug};
+use lib::ptr;
 
 #[cfg(feature = "check_double_free")]
-use std::collections::HashSet;
+use lib::collections::HashSet;
 
 type Offset = u64;
 
@@ -54,7 +54,7 @@ fn offset_to_str(off: u64) -> String {
 }
 
 impl Debug for LogEnum {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::result::Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> lib::result::Result<(), fmt::Error> {
         match *self {
             DataLog(off, _, _) => write!(f, "DataLog         ({})", offset_to_str(off)),
             DropOnAbort(off, _) => write!(f, "DropOnAbort     ({})", offset_to_str(off)),
@@ -106,7 +106,7 @@ impl<A: MemPool> Notifier<A> {
         match self {
             Atomic(n) => {
                 if let Some(n) = n.as_option() {
-                    unsafe { std::intrinsics::atomic_store_release(n.as_mut_ptr(), v) }
+                    unsafe { lib::intrinsics::atomic_store_release(n.as_mut_ptr(), v) }
                 }
             }
             NonAtomic(n) => {
@@ -174,7 +174,7 @@ impl<A: MemPool> PartialEq for Log<A> {
 }
 
 impl<A: MemPool> Debug for Log<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut lib::fmt::Formatter<'_>) -> lib::result::Result<(), lib::fmt::Error> {
         write!(f, "{:?}", self.0)
     }
 }
@@ -354,9 +354,9 @@ impl<A: MemPool> Log<A> {
         mut notifier: Notifier<A>,
     ) -> Ptr<Log<A>, A> {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::DataLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::DataLog(lib::time::Instant::now());
 
-        let len = std::mem::size_of_val(x);
+        let len = lib::mem::size_of_val(x);
         if len == 0 {
             notifier.update(1);
             Ptr::dangling()
@@ -371,7 +371,7 @@ impl<A: MemPool> Log<A> {
                 offset_to_str(pointer.off()),
                 offset_to_str((pointer.off() as usize + (len - 1)) as u64),
                 len,
-                std::any::type_name_of_val(x)
+                lib::any::type_name_of_val(x)
             );
             #[cfg(feature = "verbose")]
             {
@@ -404,9 +404,9 @@ impl<A: MemPool> Log<A> {
         mut notifier: Notifier<A>,
     ) -> Ptr<Log<A>, A> {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::DataLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::DataLog(lib::time::Instant::now());
 
-        let len = std::mem::size_of_val(x);
+        let len = lib::mem::size_of_val(x);
         if len == 0 {
             notifier.update(1);
             Ptr::dangling()
@@ -421,7 +421,7 @@ impl<A: MemPool> Log<A> {
                 offset_to_str(slice.off()),
                 offset_to_str((slice.off() as usize + (len - 1)) as u64),
                 len,
-                std::any::type_name_of_val(x)
+                lib::any::type_name_of_val(x)
             );
             #[cfg(feature = "verbose")]
             {
@@ -456,7 +456,7 @@ impl<A: MemPool> Log<A> {
         debug_assert_ne!(len, 0);
 
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::DropLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::DropLog(lib::time::Instant::now());
 
         log!(
             A,
@@ -478,7 +478,7 @@ impl<A: MemPool> Log<A> {
         debug_assert_ne!(len, 0);
 
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::DropLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::DropLog(lib::time::Instant::now());
 
         log!(
             A,
@@ -501,7 +501,7 @@ impl<A: MemPool> Log<A> {
         debug_assert_ne!(len, 0);
 
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::DropLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::DropLog(lib::time::Instant::now());
 
         log!(
             A,
@@ -522,7 +522,7 @@ impl<A: MemPool> Log<A> {
     #[track_caller]
     pub unsafe fn unlock_on_commit(virt_addr: u64, journal: &Journal<A>) {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::MutexLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::MutexLog(lib::time::Instant::now());
 
         log!(
             A,
@@ -605,7 +605,7 @@ impl<A: MemPool> Log<A> {
 
     pub(crate) unsafe fn rollback(&mut self) {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::RollbackLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::RollbackLog(lib::time::Instant::now());
 
         match &mut self.0 {
             DataLog(src, log, len) => {
@@ -625,7 +625,7 @@ impl<A: MemPool> Log<A> {
         #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::RollbackLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::RollbackLog(lib::time::Instant::now());
 
         match &mut self.0 {
             DropOnAbort(src, len) => {
@@ -727,7 +727,7 @@ impl<A: MemPool> Log<A> {
     /// Commits changes
     pub(crate) fn commit_data(&mut self) {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::CommitLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::CommitLog(lib::time::Instant::now());
 
         match &mut self.0 {
             DataLog(_src, _log, _len) => {
@@ -752,7 +752,7 @@ impl<A: MemPool> Log<A> {
         #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::CommitLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::CommitLog(lib::time::Instant::now());
 
         match &mut self.0 {
             DropOnCommit(src, len) => {
@@ -790,7 +790,7 @@ impl<A: MemPool> Log<A> {
         #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         #[cfg(feature = "stat_perf")]
-        let _perf = crate::stat::Measure::<A>::ClearLog(std::time::Instant::now());
+        let _perf = crate::stat::Measure::<A>::ClearLog(lib::time::Instant::now());
 
         match &mut self.0 {
             DataLog(_src, log, len) => {
@@ -852,7 +852,7 @@ impl<A: MemPool> Log<A> {
                         let b = &mut *(*src as *mut (bool, u64));
                         b.0 = false;
                         let lock = &mut b.1;
-                        std::intrinsics::atomic_store_release(lock, 0);
+                        lib::intrinsics::atomic_store_release(lock, 0);
                     }
 
                     *src = u64::MAX;

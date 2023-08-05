@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-use std::collections::hash_map::DefaultHasher;
-use std::fmt::Display;
-use std::hash::{Hash, Hasher};
+use lib::collections::hash_map::DefaultHasher;
+use lib::fmt::Display;
+use lib::hash::{Hash, Hasher};
 
 use crate::alloc::*;
 use crate::cell::PRefCell;
@@ -239,7 +239,7 @@ where
 }
 
 impl<K: PSafe + Display, V: PSafe + Display + Copy, P: MemPool> Display for HashMap<K, V, P> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut lib::fmt::Formatter<'_>) -> lib::result::Result<(), lib::fmt::Error> {
         let mut vec = vec![];
         self.foreach(|word, freq| {
             vec.push((word.to_string(), freq.clone()));

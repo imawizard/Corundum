@@ -99,10 +99,10 @@ impl<T: PSafe + PClone<A> + ?Sized, A: MemPool> PClone<A> for &[T] {
 
 impl<T: PSafe + PClone<A>, A: MemPool, const N: usize> PClone<A> for [T; N] {
     fn pclone(&self, j: &Journal<A>) -> Self {
-        use std::mem::MaybeUninit;
+        use lib::mem::MaybeUninit;
         let mut res = unsafe { MaybeUninit::<Self>::uninit().assume_init() };
         for i in 0..res.len() {
-            std::mem::forget(std::mem::replace(&mut res[i], self[i].pclone(j)));
+            lib::mem::forget(lib::mem::replace(&mut res[i], self[i].pclone(j)));
         }
         res
     }

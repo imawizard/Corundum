@@ -5,17 +5,17 @@ use crate::ptr::Ptr;
 use crate::stm::*;
 use crate::utils::SpinLock;
 use crate::*;
-use std::clone::Clone as StdClone;
-use std::cmp::Ordering;
-use std::hash::Hash;
-use std::hash::Hasher;
-use std::marker::PhantomData;
-use std::mem::MaybeUninit;
-use std::ops::Deref;
-use std::panic::RefUnwindSafe;
-use std::panic::UnwindSafe;
-use std::sync::atomic::{self, AtomicBool, Ordering::*};
-use std::*;
+use lib::clone::Clone as StdClone;
+use lib::cmp::Ordering;
+use lib::hash::Hash;
+use lib::hash::Hasher;
+use lib::marker::PhantomData;
+use lib::mem::MaybeUninit;
+use lib::ops::Deref;
+use lib::panic::RefUnwindSafe;
+use lib::panic::UnwindSafe;
+use lib::sync::atomic::{self, AtomicBool, Ordering::*};
+use lib::*;
 
 const MAX_REFCOUNT: usize = (isize::MAX) as usize;
 
@@ -46,7 +46,7 @@ unsafe impl<T: PSafe + ?Sized, A: MemPool> PSafe for ParcInner<T, A> {}
 impl<T: ?Sized, A: MemPool> !VSafe for ParcInner<T, A> {}
 
 unsafe fn set_data_ptr<T, U>(mut ptr: *mut T, data: *mut U) -> *mut T {
-    std::ptr::write(&mut ptr as *mut _ as *mut *mut u8, data as *mut u8);
+    lib::ptr::write(&mut ptr as *mut _ as *mut *mut u8, data as *mut u8);
     ptr
 }
 
@@ -274,7 +274,7 @@ impl<T: PSafe, A: MemPool> Parc<T, A> {
     pub fn new_zeroed(journal: &Journal<A>) -> Parc<mem::MaybeUninit<T>, A> {
         unsafe {
             let mut uninit = Self::new_uninit(journal);
-            std::ptr::write_bytes::<T>(Parc::get_mut_unchecked(&mut uninit).as_mut_ptr(), 0, 1);
+            lib::ptr::write_bytes::<T>(Parc::get_mut_unchecked(&mut uninit).as_mut_ptr(), 0, 1);
             uninit
         }
     }
@@ -308,7 +308,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Parc<T, A> {
     unsafe fn drop_slow(&mut self, j: &Journal<A>) {
         // Destroy the data at this time, even though we may not free the box
         // allocation itself (there may still be weak pointers lying around).
-        std::ptr::drop_in_place(&mut self.ptr.as_mut().value);
+        lib::ptr::drop_in_place(&mut self.ptr.as_mut().value);
 
         let inner = self.inner();
         if fetch_dec(inner.counter.lock.as_mut(), &mut inner.counter.weak, j) == 1 {
@@ -316,7 +316,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Parc<T, A> {
             A::free(self.ptr.as_mut());
 
             #[cfg(not(feature = "no_volatile_pointers"))]
-            std::ptr::drop_in_place(self.ptr.as_mut().vlist.as_mut());
+            lib::ptr::drop_in_place(self.ptr.as_mut().vlist.as_mut());
         }
     }
 }
@@ -740,7 +740,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PClone<A> for Parc<T, A> {
         // We abort because such a program is incredibly degenerate, and we
         // don't care to support it.
         if old_size > MAX_REFCOUNT {
-            std::process::abort();
+            lib::process::abort();
         }
 
         Self::from_inner(self.ptr)
@@ -880,7 +880,7 @@ impl<T: ?Sized, A: MemPool> !VSafe for Weak<T, A> {}
 impl<T: PSafe, A: MemPool> Weak<T, A> {
     pub fn as_raw(&self) -> *const T {
         match self.inner() {
-            None => std::ptr::null(),
+            None => lib::ptr::null(),
             Some(inner) => {
                 let offset = data_offset_sized::<T, A>();
                 let ptr = inner as *const ParcInner<T, A>;
@@ -963,7 +963,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Weak<T, A> {
 
         // See comments in `Arc::clone` for why we do this (for `mem::forget`).
         if n > MAX_REFCOUNT {
-            std::process::abort();
+            lib::process::abort();
         }
 
         lock_free_fetch_inc(&mut inner.counter.strong, j);
@@ -1080,7 +1080,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PClone<A> for Weak<T, A> {
 
         // See comments in Arc::clone() for why we do this (for mem::forget).
         if old_size > MAX_REFCOUNT {
-            std::process::abort();
+            lib::process::abort();
         }
 
         Weak { ptr: self.ptr }
@@ -1236,7 +1236,7 @@ fn data_offset_sized<T, A: MemPool>() -> isize {
 
 #[inline]
 fn data_offset_align<A: MemPool>(align: usize) -> isize {
-    let layout = std::alloc::Layout::new::<ParcInner<(), A>>();
+    let layout = lib::alloc::Layout::new::<ParcInner<(), A>>();
     (layout.size() + layout.padding_needed_for(align)) as isize
 }
 
@@ -1330,7 +1330,7 @@ impl<T: PSafe + ?Sized, A: MemPool> VWeak<T, A> {
 
         // See comments in `Arc::clone` for why we do this (for `mem::forget`).
         if n > MAX_REFCOUNT {
-            std::process::abort();
+            lib::process::abort();
         }
 
         lock_free_fetch_inc(&mut inner.counter.strong, j);
@@ -1400,7 +1400,7 @@ struct VWeakValid {
     list: *mut VWeakList,
 }
 
-use std::sync::Mutex as StdMutex;
+use lib::sync::Mutex as StdMutex;
 
 struct VWeakList {
     head: StdMutex<*mut VWeakValid>,
@@ -1416,7 +1416,7 @@ impl VWeakList {
         let new = Box::into_raw(Box::new(VWeakValid {
             valid: AtomicBool::new(true),
             next: *head,
-            prev: std::ptr::null_mut(),
+            prev: lib::ptr::null_mut(),
             list,
         }));
         if !(*head).is_null() {
@@ -1432,7 +1432,7 @@ impl VWeakList {
 impl Default for VWeakList {
     fn default() -> Self {
         VWeakList {
-            head: StdMutex::new(std::ptr::null_mut()),
+            head: StdMutex::new(lib::ptr::null_mut()),
         }
     }
 }
@@ -1447,7 +1447,7 @@ impl Drop for VWeakList {
             let mut curr = *head;
             while !curr.is_null() {
                 (*curr).valid.store(false, Release);
-                (*curr).list = std::ptr::null_mut();
+                (*curr).list = lib::ptr::null_mut();
                 curr = (*curr).next;
             }
         }

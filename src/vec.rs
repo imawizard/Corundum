@@ -7,14 +7,14 @@ use crate::convert::PFrom;
 use crate::ptr::*;
 use crate::stm::*;
 use crate::*;
-use std::alloc::Layout;
-use std::cmp::Ordering;
-use std::fmt::{Debug, Display, Formatter};
-use std::marker::PhantomData;
-use std::ops::Index;
-use std::slice::SliceIndex;
-use std::vec::Vec as StdVec;
-use std::{mem, ptr, slice};
+use lib::alloc::Layout;
+use lib::cmp::Ordering;
+use lib::fmt::{Debug, Display, Formatter};
+use lib::marker::PhantomData;
+use lib::ops::Index;
+use lib::slice::SliceIndex;
+use lib::vec::Vec as StdVec;
+use lib::{mem, ptr, slice};
 
 /// A contiguous growable persistent array type, written `Vec<T>` but pronounced
 /// 'vector'.
@@ -368,7 +368,7 @@ impl<T: PSafe, A: MemPool> Vec<T, A> {
     /// Returns a raw pointer to data if there is any
     pub(crate) unsafe fn as_ptr(&self) -> *mut T {
         if self.len == 0 {
-            std::ptr::null_mut()
+            lib::ptr::null_mut()
         } else {
             A::get_mut_unchecked(self.off())
         }
@@ -978,8 +978,8 @@ impl<T: PSafe, A: MemPool> Vec<T, A> {
         self.len = 0;
     }
 
-    pub fn cast<U, F: Fn(&T) -> U>(&self, f: F) -> std::vec::Vec<U> {
-        let mut res = std::vec::Vec::<U>::with_capacity(self.len);
+    pub fn cast<U, F: Fn(&T) -> U>(&self, f: F) -> lib::vec::Vec<U> {
+        let mut res = lib::vec::Vec::<U>::with_capacity(self.len);
         for v in self {
             res.push(f(v));
         }
@@ -1026,7 +1026,7 @@ impl<A: MemPool, T: PSafe, I: SliceIndex<[T]>> Index<I> for Vec<T, A> {
 //     }
 // }
 
-impl<T: PSafe, A: MemPool> std::ops::Deref for Vec<T, A> {
+impl<T: PSafe, A: MemPool> lib::ops::Deref for Vec<T, A> {
     type Target = [T];
 
     fn deref(&self) -> &[T] {
@@ -1034,14 +1034,14 @@ impl<T: PSafe, A: MemPool> std::ops::Deref for Vec<T, A> {
     }
 }
 
-// impl<T: PSafe, A: MemPool> std::ops::DerefMut for Vec<T, A> {
+// impl<T: PSafe, A: MemPool> lib::ops::DerefMut for Vec<T, A> {
 //     fn deref_mut(&mut self) -> &mut [T] {
 //         self.as_slice_mut()
 //     }
 // }
 
 impl<T: PSafe + Debug, A: MemPool> Debug for Vec<T, A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), lib::fmt::Error> {
         let len = self.len();
         write!(f, "[")?;
         if len > 0 {
@@ -1055,7 +1055,7 @@ impl<T: PSafe + Debug, A: MemPool> Debug for Vec<T, A> {
 }
 
 impl<T: PSafe + Display, A: MemPool> Display for Vec<T, A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), lib::fmt::Error> {
         let len = self.len();
         write!(f, "[")?;
         if len > 0 {
@@ -1139,7 +1139,7 @@ impl<T: PSafe, A: MemPool> RootObj<A> for Vec<T, A> {
 
 /// structure helper for consuming iterator.
 pub struct IntoIteratorHelper<T> {
-    iter: std::vec::IntoIter<T>,
+    iter: lib::vec::IntoIter<T>,
 }
 
 /// implement the IntoIterator trait for a consuming iterator. Iteration will
@@ -1152,7 +1152,7 @@ impl<T: PSafe, A: MemPool> IntoIterator for Vec<T, A> {
     fn into_iter(self) -> Self::IntoIter {
         unsafe {
             IntoIteratorHelper {
-                iter: std::vec::Vec::from_raw_parts(
+                iter: lib::vec::Vec::from_raw_parts(
                     self.buf.as_mut_ptr(),
                     self.len,
                     self.buf.capacity(),
@@ -1177,7 +1177,7 @@ impl<T: PSafe> Iterator for IntoIteratorHelper<T> {
 
 /// structure helper for non-consuming iterator.
 pub struct IterHelper<'a, T> {
-    iter: std::slice::Iter<'a, T>,
+    iter: lib::slice::Iter<'a, T>,
 }
 
 /// implement the IntoIterator trait for a non-consuming iterator. Iteration will
@@ -1279,7 +1279,7 @@ impl<A: MemPool> PFrom<&str, A> for Vec<u8, A> {
 
 impl<A: MemPool> Vec<u8, A> {
     pub fn to_str(&self) -> &str {
-        unsafe { std::str::from_utf8_unchecked(self.as_slice()) }
+        unsafe { lib::str::from_utf8_unchecked(self.as_slice()) }
     }
 }
 

@@ -1,7 +1,7 @@
-use std::cell::Cell;
-use std::mem::MaybeUninit;
-use std::ops::Deref;
-use std::panic::{RefUnwindSafe, UnwindSafe};
+use lib::cell::Cell;
+use lib::mem::MaybeUninit;
+use lib::ops::Deref;
+use lib::panic::{RefUnwindSafe, UnwindSafe};
 
 /// A memory cell which is initialized on the first access
 pub struct LazyCell<T, F = fn() -> T> {

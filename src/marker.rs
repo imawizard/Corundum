@@ -2,14 +2,14 @@
 //!
 use crate::alloc::MemPool;
 use crate::stm::Journal;
-use std::cell::UnsafeCell;
-use std::fmt;
-use std::future::Future;
-use std::ops::{Deref, DerefMut};
-use std::panic::{RefUnwindSafe, UnwindSafe};
-use std::pin::Pin;
-use std::task::Context;
-use std::task::Poll;
+use lib::cell::UnsafeCell;
+use lib::fmt;
+use lib::future::Future;
+use lib::ops::{Deref, DerefMut};
+use lib::panic::{RefUnwindSafe, UnwindSafe};
+use lib::pin::Pin;
+use lib::task::Context;
+use lib::task::Poll;
 
 /// It marks the implementing type to be free of pointers to the volatile heap,
 /// and persistence safe.
@@ -35,7 +35,7 @@ impl<T: ?Sized> !PSafe for *const T {}
 impl<T: ?Sized> !PSafe for *mut T {}
 impl<T> !PSafe for &T {}
 impl<T> !PSafe for &mut T {}
-impl !PSafe for std::fs::File {}
+impl !PSafe for lib::fs::File {}
 
 impl<R> !PSafe for fn() -> R {}
 
@@ -135,8 +135,8 @@ impl<T: ?Sized> !TxOutSafe for &mut T {}
 impl<T: ?Sized> !TxOutSafe for UnsafeCell<T> {}
 
 unsafe impl TxOutSafe for String {}
-unsafe impl<T> TxOutSafe for std::thread::JoinHandle<T> {}
-unsafe impl<T> TxOutSafe for Vec<std::thread::JoinHandle<T>> {}
+unsafe impl<T> TxOutSafe for lib::thread::JoinHandle<T> {}
+unsafe impl<T> TxOutSafe for Vec<lib::thread::JoinHandle<T>> {}
 
 /// It is equal to UnwindSafe, but is used to ensure doubly that mutable
 /// references cannot go inside a transaction.

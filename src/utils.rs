@@ -1,6 +1,6 @@
-use std::fmt::{Debug, Error, Formatter};
-use std::fs::File;
-use std::io::Read;
+use lib::fmt::{Debug, Error, Formatter};
+use lib::fs::File;
+use lib::io::Read;
 
 #[cfg(not(feature = "no_flush_alloc"))]
 use crate::ll::*;
@@ -19,7 +19,7 @@ macro_rules! may_crash {
     () => {
         if $crate::utils::can_crash() {
             eprintln!("\nCrashed at {}:{}", file!(), line!());
-            std::process::exit(0);
+            lib::process::exit(0);
         }
     };
 }
@@ -35,7 +35,7 @@ pub fn can_crash() -> bool {
                 return r % 10000 == 0;
             }
         } else {
-            let p = std::env::var("CRASH_PROB")
+            let p = lib::env::var("CRASH_PROB")
                 .unwrap_or("0".to_string())
                 .parse::<u64>()
                 .expect("CRASH_PROB should be a non-negative integer");
@@ -54,11 +54,11 @@ pub unsafe fn as_mut<'a, T: ?Sized>(v: *const T) -> &'a mut T {
 pub fn as_slice<T: ?Sized>(x: &T) -> &[u8] {
     let ptr: *const T = x;
     let ptr: *const u8 = ptr as *const u8;
-    unsafe { std::slice::from_raw_parts(ptr, std::mem::size_of_val(x)) }
+    unsafe { lib::slice::from_raw_parts(ptr, lib::mem::size_of_val(x)) }
 }
 
 pub fn as_slice64<T: ?Sized>(x: &T) -> &[u64] {
-    let len = std::mem::size_of_val(x);
+    let len = lib::mem::size_of_val(x);
     assert_eq!(
         len % 8,
         0,
@@ -67,12 +67,12 @@ pub fn as_slice64<T: ?Sized>(x: &T) -> &[u64] {
     );
     let ptr: *const T = x;
     let ptr: *const u64 = ptr as *const u64;
-    unsafe { std::slice::from_raw_parts(ptr, len / 8) }
+    unsafe { lib::slice::from_raw_parts(ptr, len / 8) }
 }
 
 #[inline(always)]
 pub unsafe fn read<'a, T: ?Sized>(raw: *mut u8) -> &'a mut T {
-    assert_ne!(raw, std::ptr::null_mut(), "null dereferencing");
+    assert_ne!(raw, lib::ptr::null_mut(), "null dereferencing");
     union U<T: ?Sized> {
         raw: *mut u8,
         rf: *mut T,
@@ -101,7 +101,7 @@ impl<T, const N: usize> Ring<T, N> {
     pub fn new() -> Self {
         unsafe {
             Self {
-                data: std::mem::zeroed(),
+                data: lib::mem::zeroed(),
                 head: 0,
                 tail: 0,
             }
@@ -155,7 +155,7 @@ impl<T, const N: usize> Ring<T, N> {
             } else {
                 let b = self as *const Self as usize;
                 persist(self, h - b, false);
-                let b = b + std::mem::size_of::<Self>();
+                let b = b + lib::mem::size_of::<Self>();
                 persist(&self.data[self.tail], b - t, false);
             }
         }
@@ -286,7 +286,7 @@ pub struct SpinLock {
 
 impl SpinLock {
     pub fn acquire(lock: *mut u8) -> Self {
-        unsafe { while std::intrinsics::atomic_cxchg_acqrel_acquire(lock, 0, 1).0 == 1 {} }
+        unsafe { while lib::intrinsics::atomic_cxchg_acqrel_acquire(lock, 0, 1).0 == 1 {} }
         Self { lock }
     }
 }
@@ -294,14 +294,14 @@ impl SpinLock {
 impl Drop for SpinLock {
     fn drop(&mut self) {
         unsafe {
-            std::intrinsics::atomic_store_release(self.lock, 0);
+            lib::intrinsics::atomic_store_release(self.lock, 0);
         }
     }
 }
 
 #[cfg(feature = "verbose")]
 pub static VERBOSE: crate::cell::LazyCell<bool> = crate::cell::LazyCell::new(|| {
-    if let Ok(val) = std::env::var("VERBOSE") {
+    if let Ok(val) = lib::env::var("VERBOSE") {
         val == "1"
     } else {
         false

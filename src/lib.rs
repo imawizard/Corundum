@@ -131,6 +131,7 @@
 #![allow(incomplete_features)]
 #![allow(type_alias_bounds)]
 #![allow(cast_ref_to_mut)]
+#![feature(prelude_import)]
 
 pub(crate) const PAGE_LOG_SLOTS: usize = 128;
 
@@ -175,5 +176,30 @@ crate::pool!(default);
 
 /// A `Result` type with string error messages
 pub mod result {
-    pub type Result<T: ?Sized> = std::result::Result<T, String>;
+    pub type Result<T: ?Sized> = lib::result::Result<T, lib::string::String>;
+}
+
+#[prelude_import]
+#[allow(unused_imports)]
+use crate::prelude::*;
+
+#[doc(hidden)]
+pub mod prelude {
+    pub use crate::lib;
+    pub use core::prelude::rust_2021::*;
+
+    pub use lib::borrow::ToOwned;
+    pub use lib::boxed::Box;
+    pub use lib::string::{String, ToString};
+    pub use lib::vec::Vec;
+    pub use lib::{eprintln, format, print, println, vec};
+}
+
+#[doc(hidden)]
+pub mod lib {
+    mod core {
+        pub use std::*;
+    }
+
+    pub use self::core::*;
 }

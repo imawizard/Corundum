@@ -6,15 +6,15 @@ use crate::clone::*;
 use crate::ptr::Ptr;
 use crate::stm::*;
 use crate::{PSafe, TxOutSafe, VSafe};
-use std::cmp::Ordering;
-use std::convert::From;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::marker::Unpin;
-use std::mem;
-use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
-use std::ptr::{self, NonNull};
+use lib::cmp::Ordering;
+use lib::convert::From;
+use lib::fmt;
+use lib::hash::{Hash, Hasher};
+use lib::marker::Unpin;
+use lib::mem;
+use lib::ops::{Deref, DerefMut};
+use lib::pin::Pin;
+use lib::ptr::{self, NonNull};
 
 /// A pointer type for persistent heap allocation.
 ///
@@ -430,7 +430,7 @@ unsafe impl<#[may_dangle] T: PSafe + ?Sized, A: MemPool> Drop for Pbox<T, A> {
         unsafe {
             if !self.0.is_dangling() {
                 let p = self.0.as_mut();
-                std::ptr::drop_in_place(p);
+                lib::ptr::drop_in_place(p);
                 A::free(p);
             }
         }

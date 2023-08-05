@@ -2,18 +2,18 @@
 #![allow(unused)]
 
 use crate::alloc::MemPool;
-use std::arch::asm;
+use lib::arch::asm;
 
 #[inline(always)]
 pub fn cpu() -> usize {
-    std::thread::current().id().as_u64().get() as usize
+    lib::thread::current().id().as_u64().get() as usize
 }
 
 #[cfg(target_arch = "x86")]
-use std::arch::x86::{_mm_mfence, _mm_sfence, clflush};
+use lib::arch::x86::{_mm_mfence, _mm_sfence, clflush};
 
 #[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::{_mm_clflush, _mm_mfence, _mm_sfence};
+use lib::arch::x86_64::{_mm_clflush, _mm_mfence, _mm_sfence};
 
 /// Synchronize caches and memories and acts like a write barrier
 #[inline(always)]
@@ -36,7 +36,7 @@ pub fn persist_with_log<T: ?Sized, A: MemPool>(ptr: *const T, len: usize, fence:
 #[inline(always)]
 pub fn persist<T: ?Sized>(ptr: *const T, len: usize, fence: bool) {
     #[cfg(feature = "stat_perf")]
-    let _perf = crate::stat::Measure::<crate::default::Allocator>::Sync(std::time::Instant::now());
+    let _perf = crate::stat::Measure::<crate::default::Allocator>::Sync(lib::time::Instant::now());
 
     #[cfg(not(feature = "no_persist"))]
     {
@@ -66,7 +66,7 @@ pub fn persist<T: ?Sized>(ptr: *const T, len: usize, fence: bool) {
 pub fn persist_obj_with_log<T: ?Sized, A: MemPool>(obj: &T, fence: bool) {
     #[cfg(not(feature = "no_persist"))]
     {
-        persist_with_log::<T, A>(obj, std::mem::size_of_val(obj), fence);
+        persist_with_log::<T, A>(obj, lib::mem::size_of_val(obj), fence);
     }
 }
 
@@ -74,11 +74,11 @@ pub fn persist_obj_with_log<T: ?Sized, A: MemPool>(obj: &T, fence: bool) {
 #[inline(always)]
 pub fn persist_obj<T: ?Sized>(obj: &T, fence: bool) {
     #[cfg(feature = "stat_perf")]
-    let _perf = crate::stat::Measure::<crate::default::Allocator>::Sync(std::time::Instant::now());
+    let _perf = crate::stat::Measure::<crate::default::Allocator>::Sync(lib::time::Instant::now());
 
     #[cfg(not(feature = "no_persist"))]
     {
-        persist(obj, std::mem::size_of_val(obj), fence);
+        persist(obj, lib::mem::size_of_val(obj), fence);
     }
 }
 
@@ -138,5 +138,5 @@ pub fn sfence() {
 /// Memory fence
 #[inline]
 pub fn mfence() {
-    unsafe { std::intrinsics::atomic_fence_seqcst() }
+    unsafe { lib::intrinsics::atomic_fence_seqcst() }
 }

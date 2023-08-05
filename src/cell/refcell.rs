@@ -3,11 +3,11 @@ use crate::convert::PFrom;
 use crate::ptr::{LogNonNull, NonNull};
 use crate::stm::Journal;
 use crate::*;
-use std::cell::UnsafeCell;
-use std::fmt::{self, Debug, Display};
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::panic::{RefUnwindSafe, UnwindSafe};
+use lib::cell::UnsafeCell;
+use lib::fmt::{self, Debug, Display};
+use lib::marker::PhantomData;
+use lib::ops::{Deref, DerefMut};
+use lib::panic::{RefUnwindSafe, UnwindSafe};
 
 #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
 use crate::cell::TCell;
@@ -123,7 +123,7 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
     /// ```
     #[inline]
     pub fn replace(&self, t: T, j: &Journal<A>) -> T {
-        std::mem::replace(&mut *self.borrow_mut(j), t)
+        lib::mem::replace(&mut *self.borrow_mut(j), t)
     }
 
     /// Replaces the wrapped value with a new one computed from `f`, returning
@@ -150,7 +150,7 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
     pub fn replace_with<F: FnOnce(&mut T) -> T>(&self, j: &Journal<A>, f: F) -> T {
         let mut_borrow = &mut *self.borrow_mut(j);
         let replacement = f(mut_borrow);
-        std::mem::replace(mut_borrow, replacement)
+        lib::mem::replace(mut_borrow, replacement)
     }
 
     /// Swaps the wrapped value of `self` with the wrapped value of `other`,
@@ -179,7 +179,7 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
     /// ```
     #[inline]
     pub fn swap(&self, other: &Self, j: &Journal<A>) {
-        std::mem::swap(&mut *self.borrow_mut(j), &mut *other.borrow_mut(j))
+        lib::mem::swap(&mut *self.borrow_mut(j), &mut *other.borrow_mut(j))
     }
 }
 
@@ -196,13 +196,13 @@ impl<T: PSafe + RootObj<A>, A: MemPool> RootObj<A> for PRefCell<T, A> {
 }
 
 impl<T: PSafe + Display + ?Sized, A: MemPool> Display for PRefCell<T, A> {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, fmt: &mut lib::fmt::Formatter<'_>) -> Result<(), lib::fmt::Error> {
         self.as_ref().fmt(fmt)
     }
 }
 
 impl<T: PSafe + Debug + ?Sized, A: MemPool> Debug for PRefCell<T, A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut lib::fmt::Formatter<'_>) -> Result<(), lib::fmt::Error> {
         self.as_ref().fmt(f)
     }
 }
@@ -367,7 +367,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     /// ```
     pub fn read(&self) -> T
     where
-        T: std::clone::Clone,
+        T: lib::clone::Clone,
     {
         self.as_ref().clone()
     }
@@ -572,7 +572,7 @@ impl<T: PSafe + Eq + ?Sized, A: MemPool> Eq for PRefCell<T, A> {}
 
 impl<T: PSafe + PartialOrd + ?Sized, A: MemPool> PartialOrd for PRefCell<T, A> {
     #[inline]
-    fn partial_cmp(&self, other: &PRefCell<T, A>) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &PRefCell<T, A>) -> Option<lib::cmp::Ordering> {
         self.as_ref().partial_cmp(&*other.as_ref())
     }
 
@@ -599,7 +599,7 @@ impl<T: PSafe + PartialOrd + ?Sized, A: MemPool> PartialOrd for PRefCell<T, A> {
 
 impl<T: PSafe + Ord + ?Sized, A: MemPool> Ord for PRefCell<T, A> {
     #[inline]
-    fn cmp(&self, other: &PRefCell<T, A>) -> std::cmp::Ordering {
+    fn cmp(&self, other: &PRefCell<T, A>) -> lib::cmp::Ordering {
         self.as_ref().cmp(&*other.as_ref())
     }
 }
@@ -684,14 +684,14 @@ impl<T: PSafe + ?Sized, A: MemPool> Ref<'_, T, A> {
             value: orig.value,
             phantom: PhantomData,
         };
-        std::mem::forget(orig);
+        lib::mem::forget(orig);
         res
     }
 
     /// Returns the `&PRefCell` and drops the `Ref`
     pub fn into_inner<'a>(orig: Ref<'a, T, A>) -> &'a PRefCell<T, A> {
         let inner = orig.value;
-        std::mem::drop(orig);
+        lib::mem::drop(orig);
         unsafe { &*inner }
     }
 }
@@ -746,14 +746,14 @@ impl<T: PSafe + ?Sized, A: MemPool> RefMut<'_, T, A> {
             journal: orig.journal,
             phantom: PhantomData,
         };
-        std::mem::forget(orig);
+        lib::mem::forget(orig);
         res
     }
 
     /// Returns the `&PRefCell` and drops the `RefMut`
     pub fn into_inner<'a>(orig: RefMut<'a, T, A>) -> &'a PRefCell<T, A> {
         let inner = orig.value;
-        std::mem::drop(orig);
+        lib::mem::drop(orig);
         unsafe { &*inner }
     }
 }

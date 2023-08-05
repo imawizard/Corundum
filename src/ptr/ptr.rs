@@ -1,10 +1,10 @@
 use crate::alloc::MemPool;
 use crate::alloc::PmemUsage;
 use crate::{PSafe, TxOutSafe};
-use std::fmt::{Debug, Display, Formatter};
-use std::marker::PhantomData;
-use std::ops::*;
-use std::ptr::NonNull;
+use lib::fmt::{Debug, Display, Formatter};
+use lib::marker::PhantomData;
+use lib::ops::*;
+use lib::ptr::NonNull;
 
 #[derive(Eq)]
 /// A wrapper around a raw persistent pointer that indicates that the possessor
@@ -122,8 +122,8 @@ impl<A: MemPool, T: ?Sized> Ptr<T, A> {
         let src = self.as_ref();
         let dst = A::alloc_for_value(src);
         let trg = A::off_unchecked(dst);
-        let len = std::alloc::Layout::for_value(src).size();
-        std::ptr::copy_nonoverlapping(src as *const T as *const u8, dst as *mut T as *mut u8, len);
+        let len = lib::alloc::Layout::for_value(src).size();
+        lib::ptr::copy_nonoverlapping(src as *const T as *const u8, dst as *mut T as *mut u8, len);
         Ptr::from_off_unchecked(trg)
     }
 
@@ -265,7 +265,7 @@ impl<A: MemPool, T: PSafe + ?Sized> Clone for Ptr<T, A> {
 
 impl<A: MemPool, T: PSafe> PmemUsage for Ptr<T, A> {
     fn size_of() -> usize {
-        std::mem::size_of::<T>() + std::mem::size_of::<Self>()
+        lib::mem::size_of::<T>() + lib::mem::size_of::<Self>()
     }
 }
 
@@ -364,13 +364,13 @@ impl<A: MemPool, T: PSafe + ?Sized> DerefMut for Ptr<T, A> {
 }
 
 impl<A: MemPool, T: Debug + PSafe + ?Sized> Debug for Ptr<T, A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> lib::fmt::Result {
         write!(f, "{:?}", self.as_ref())
     }
 }
 
 impl<A: MemPool, T: Display + PSafe + ?Sized> Display for Ptr<T, A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> lib::fmt::Result {
         write!(f, "{}", self.as_ref())
     }
 }

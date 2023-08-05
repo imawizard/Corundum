@@ -1,17 +1,17 @@
 #![cfg(feature = "cbindings")]
 
-// use std::hash::*;
+// use lib::hash::*;
 use crate::alloc::*;
 use crate::clone::PClone;
 use crate::ptr::*;
 use crate::stm::Journal;
 use crate::stm::{Logger, Notifier};
 use crate::*;
-use std::marker::PhantomData;
-use std::mem::size_of;
-use std::mem::MaybeUninit;
-use std::ops::Deref;
-use std::panic::{RefUnwindSafe, UnwindSafe};
+use lib::marker::PhantomData;
+use lib::mem::size_of;
+use lib::mem::MaybeUninit;
+use lib::ops::Deref;
+use lib::panic::{RefUnwindSafe, UnwindSafe};
 
 pub static mut CODE_SEGMENT_BASE: i64 = 0;
 
@@ -234,7 +234,7 @@ impl<T, P: MemPool> ByteArray<T, P> {
 
     pub fn write_to(&self, loc: &mut MaybeUninit<T>) {
         unsafe {
-            std::ptr::copy_nonoverlapping(
+            lib::ptr::copy_nonoverlapping(
                 self.bytes.as_ptr(),
                 loc as *mut _ as *mut u8,
                 self.bytes.capacity(),
@@ -262,7 +262,7 @@ impl<T, P: MemPool> ByteArray<T, P> {
             if self.logged == 0 {
                 slice.create_log(j, Notifier::NonAtomic(Ptr::from_ref(&self.logged)));
             }
-            std::ptr::copy_nonoverlapping(new.ptr, slice as *mut [u8] as *mut c_void, slice.len())
+            lib::ptr::copy_nonoverlapping(new.ptr, slice as *mut [u8] as *mut c_void, slice.len())
         }
     }
 }
@@ -286,7 +286,7 @@ impl<T, P: MemPool> Gen<T, P> {
     #[inline]
     pub fn null() -> Self {
         Self {
-            ptr: std::ptr::null(),
+            ptr: lib::ptr::null(),
             len: 0,
             destructor_address: 0,
             phantom: PhantomData,
@@ -297,12 +297,12 @@ impl<T, P: MemPool> Gen<T, P> {
 impl<T, P: MemPool> Gen<T, P> {
     #[inline]
     fn as_slice(&self) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(self.ptr as *mut u8, self.len) }
+        unsafe { lib::slice::from_raw_parts(self.ptr as *mut u8, self.len) }
     }
 
     #[inline]
     fn as_slice_mut(&mut self) -> &mut [u8] {
-        unsafe { std::slice::from_raw_parts_mut(self.ptr as *mut u8, self.len) }
+        unsafe { lib::slice::from_raw_parts_mut(self.ptr as *mut u8, self.len) }
     }
 
     #[inline]
@@ -323,7 +323,7 @@ impl<T, P: MemPool> Gen<T, P> {
             destructor_address: obj.destructor_address,
             phantom: PhantomData,
         };
-        std::mem::forget(obj);
+        lib::mem::forget(obj);
         res
     }
 
