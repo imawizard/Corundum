@@ -532,14 +532,14 @@ impl<A: MemPool> Log<A> {
             virt_addr
         );
 
-        #[cfg(any(feature = "no_pthread", windows))]
+        #[cfg(not(feature = "pthreads"))]
         {
             let b = &mut *(virt_addr as *mut (bool, u64));
             if b.0 {
                 return;
             }
         }
-        #[cfg(not(any(feature = "no_pthread", windows)))]
+        #[cfg(feature = "pthreads")]
         {
             let b =
                 &mut *(virt_addr as *mut (bool, libc::pthread_mutex_t, libc::pthread_mutexattr_t));
@@ -832,7 +832,7 @@ impl<A: MemPool> Log<A> {
             UnlockOnCommit(src) => {
                 if *src != u64::MAX {
                     log!(A, Magenta, "UNLOCK", "FOR:          v@{}", *src);
-                    #[cfg(not(any(feature = "no_pthread", windows)))]
+                    #[cfg(feature = "pthreads")]
                     {
                         let b = &mut *(*src as *mut (
                             bool,
@@ -847,7 +847,7 @@ impl<A: MemPool> Log<A> {
                             crate::sync::init_lock(lock, attr);
                         }
                     }
-                    #[cfg(any(feature = "no_pthread", windows))]
+                    #[cfg(not(feature = "pthreads"))]
                     {
                         let b = &mut *(*src as *mut (bool, u64));
                         b.0 = false;

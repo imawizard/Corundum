@@ -93,15 +93,15 @@ pub struct PMutex<T, A: MemPool> {
 struct MutexInner {
     borrowed: bool,
 
-    #[cfg(not(any(feature = "no_pthread", windows)))]
+    #[cfg(feature = "pthreads")]
     lock: (bool, libc::pthread_mutex_t, libc::pthread_mutexattr_t),
 
-    #[cfg(any(feature = "no_pthread", windows))]
+    #[cfg(not(feature = "pthreads"))]
     lock: (bool, u64),
 }
 
 impl Default for MutexInner {
-    #[cfg(not(any(feature = "no_pthread", windows)))]
+    #[cfg(feature = "pthreads")]
     fn default() -> Self {
         use lib::mem::MaybeUninit;
         let mut attr = MaybeUninit::<libc::pthread_mutexattr_t>::uninit();
@@ -115,7 +115,7 @@ impl Default for MutexInner {
         }
     }
 
-    #[cfg(any(feature = "no_pthread", windows))]
+    #[cfg(not(feature = "pthreads"))]
     fn default() -> Self {
         MutexInner {
             borrowed: false,
@@ -211,11 +211,11 @@ impl<T, A: MemPool> PMutex<T, A> {
         unsafe {
             // Log::unlock_on_failure(self.inner.get(), journal);
             let lock = &self.inner.lock.1 as *const _ as *mut _;
-            #[cfg(not(any(feature = "no_pthread", windows)))]
+            #[cfg(feature = "pthreads")]
             {
                 libc::pthread_mutex_lock(lock);
             }
-            #[cfg(any(feature = "no_pthread", windows))]
+            #[cfg(not(feature = "pthreads"))]
             {
                 let tid = lib::thread::current().id().as_u64().get();
                 while intrinsics::atomic_cxchg_acqrel_acquire(lock, 0, tid).0 != tid {}
@@ -223,10 +223,10 @@ impl<T, A: MemPool> PMutex<T, A> {
             if self.inner.acquire() {
                 Log::unlock_on_commit(&self.inner.lock as *const _ as u64, journal);
             } else {
-                #[cfg(not(any(feature = "no_pthread", windows)))]
+                #[cfg(feature = "pthreads")]
                 libc::pthread_mutex_unlock(lock);
 
-                #[cfg(any(feature = "no_pthread", windows))]
+                #[cfg(not(feature = "pthreads"))]
                 intrinsics::atomic_store_release(lock, 0);
 
                 panic!("Cannot have multiple instances of MutexGuard");
@@ -283,10 +283,10 @@ impl<T, A: MemPool> PMutex<T, A> {
         unsafe {
             let lock = &self.inner.lock.1 as *const _ as *mut _;
 
-            #[cfg(not(any(feature = "no_pthread", windows)))]
+            #[cfg(feature = "pthreads")]
             let result = libc::pthread_mutex_trylock(lock) == 0;
 
-            #[cfg(any(feature = "no_pthread", windows))]
+            #[cfg(not(feature = "pthreads"))]
             let result = {
                 let tid = lib::thread::current().id().as_u64().get();
                 intrinsics::atomic_cxchg_acqrel_acquire(lock, 0, tid).0 == tid
@@ -297,10 +297,10 @@ impl<T, A: MemPool> PMutex<T, A> {
                     Log::unlock_on_commit(&self.inner.lock as *const _ as u64, journal);
                     true
                 } else {
-                    #[cfg(not(any(feature = "no_pthread", windows)))]
+                    #[cfg(feature = "pthreads")]
                     libc::pthread_mutex_unlock(lock);
 
-                    #[cfg(any(feature = "no_pthread", windows))]
+                    #[cfg(not(feature = "pthreads"))]
                     intrinsics::atomic_store_release(lock, 0);
 
                     panic!("Cannot have multiple instances of MutexGuard");
@@ -426,7 +426,7 @@ impl<T, A: MemPool> Drop for MutexGuard<'_, T, A> {
     }
 }
 
-#[cfg(not(any(feature = "no_pthread", windows)))]
+#[cfg(feature = "pthreads")]
 pub unsafe fn init_lock(mutex: *mut libc::pthread_mutex_t, attr: *mut libc::pthread_mutexattr_t) {
     *mutex = libc::PTHREAD_MUTEX_INITIALIZER;
     let result = libc::pthread_mutexattr_init(attr);

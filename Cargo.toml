@@ -28,7 +28,7 @@ replace_with_log = []
 use_clflushopt = []
 use_clwb = []
 use_ntstore = []
-use_msync = []
+use_msync = ["libc"]
 use_pspd = []
 use_vspd = []
 no_persist = []
@@ -36,14 +36,14 @@ no_log_rc = []
 no_flush_alloc = []
 no_flush_updates = []
 no_dyn_borrow_checking = []
-no_pthread = []
+pthreads = ["libc"]
 cbindings = []
 default = ["cbindings"]
 
 [dependencies]
 memmap = "0.7.0"
 term-painter = "0.3.0"
-libc = "0.2.147"
+libc = { version = "0.2.147", optional = true }
 impl-trait-for-tuples = "0.2.2"
 crndm_derive = "0.1.1"
 num_cpus = "1.16.0"
