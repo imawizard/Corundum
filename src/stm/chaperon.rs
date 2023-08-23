@@ -1,9 +1,11 @@
 use crate::cell::LazyCell;
+use crate::memmap;
 use crate::result::Result;
 use crate::{utils, TxInSafe, TxOutSafe};
 use lib::collections::hash_map::HashMap;
 use lib::fmt::{self, Debug};
 use lib::fs::OpenOptions;
+#[allow(unused_imports)]
 use lib::io::{self, Error, Write};
 use lib::panic::{RefUnwindSafe, UnwindSafe};
 use lib::path::Path;

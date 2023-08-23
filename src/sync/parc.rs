@@ -15,7 +15,7 @@ use lib::ops::Deref;
 use lib::panic::RefUnwindSafe;
 use lib::panic::UnwindSafe;
 use lib::sync::atomic::{self, AtomicBool, Ordering::*};
-use lib::*;
+use lib::{borrow, fmt, mem};
 
 const MAX_REFCOUNT: usize = (isize::MAX) as usize;
 

@@ -116,6 +116,8 @@ dependencies = [
  "num_cpus",
  "rand",
  "regex",
+ "siphasher",
+ "spin",
  "term-painter",
 ]
 
@@ -566,6 +568,18 @@ dependencies = [
  "ryu",
  "serde",
 ]
+
+[[package]]
+name = "siphasher"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7bd3e3206899af3f8b12af284fafc038cc1dc2b41d1b89dd17297221c5d225de"
+
+[[package]]
+name = "spin"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "strsim"

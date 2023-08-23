@@ -7,7 +7,6 @@ use lib::hash::{Hash, Hasher};
 use crate::alloc::*;
 use crate::cell::PRefCell;
 use crate::clone::PClone;
-use crate::gen::Allocatable;
 use crate::stm::Journal;
 use crate::vec::Vec as PVec;
 use crate::*;
@@ -189,6 +188,7 @@ where
         bucket.push(PRefCell::new((key.pclone(j), self.values.len() - 1)), j);
     }
 
+    #[cfg(feature = "cbindings")]
     pub fn update_with_hash<Key, Value, F: FnOnce(&mut Value)>(
         &mut self,
         key: &Key,
@@ -197,7 +197,7 @@ where
         j: &Journal<P>,
         f: F,
     ) where
-        V: Allocatable<Value, P>,
+        V: crate::gen::Allocatable<Value, P>,
         K: PClone<P> + PartialEq<Key> + PFrom<Key, P>,
         Key: Clone,
     {

@@ -1116,10 +1116,10 @@ macro_rules! pool {
         /// The default allocator module
         pub mod $mod {
             use $crate::prelude::*;
-            use memmap::*;
+            use $crate::memmap::*;
             use lib::collections::hash_map::DefaultHasher;
-            use lib::collections::{HashMap, HashSet};
             use lib::fs::OpenOptions;
+            use lib::collections::{HashMap, HashSet};
             use lib::hash::{Hash, Hasher};
             use lib::mem;
             use lib::ops::Range;
@@ -1141,7 +1141,6 @@ macro_rules! pool {
                 transaction,
                 open_flags,
                 PClone,
-                Root,
                 RootObj,
                 ToPString,
                 ToPStringSlice,
@@ -1201,7 +1200,10 @@ macro_rules! pool {
                     let cpus = if let Some(val) = lib::env::var_os("CPUS") {
                         val.into_string().unwrap().parse::<usize>().unwrap()
                     } else {
-                        num_cpus::get()
+                        #[cfg(feature = "num_cpus")]
+                        { num_cpus::get() }
+                        #[cfg(not(feature = "num_cpus"))]
+                        { 1 }
                     };
                     assert_ne!(cpus, 0);
                     let quota = size / cpus;

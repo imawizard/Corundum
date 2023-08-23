@@ -101,11 +101,15 @@
 //! [`PMutex<T>`]: ./alloc/default/type.PMutex.html
 //! [`open<T>()`]: ./alloc/struct.MemPool.html#method.open
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![feature(auto_traits)]
 #![feature(specialization)]
 #![feature(concat_idents)]
 #![feature(core_intrinsics)]
-#![feature(thread_id_value)]
+// FIXME: needed for std, "unknown feature" when no_std.
+// #![cfg_attr(not(feature = "std"), feature(thread_id_value))]
+// doesn't work either.
+//#![feature(thread_id_value)]
 #![feature(negative_impls)]
 #![feature(trusted_len)]
 #![feature(exact_size_is_empty)]
@@ -133,6 +137,9 @@
 #![allow(cast_ref_to_mut)]
 #![feature(prelude_import)]
 
+#[cfg(all(feature = "std", feature = "no_std"))]
+compile_error!("Cannot use both std and no_std");
+
 pub(crate) const PAGE_LOG_SLOTS: usize = 128;
 
 pub mod gen;
@@ -140,6 +147,7 @@ pub mod ll;
 pub mod prc;
 pub mod ptr;
 pub mod stat;
+#[cfg(feature = "std")]
 pub mod stl;
 pub mod stm;
 pub mod sync;
@@ -162,6 +170,7 @@ pub use cell::RootObj;
 pub use cell::*;
 pub use clone::*;
 pub use convert::*;
+#[cfg(feature = "derive")]
 pub use crndm_derive::*;
 pub use marker::*;
 pub use prc::Prc;
@@ -178,6 +187,9 @@ crate::pool!(default);
 pub mod result {
     pub type Result<T: ?Sized> = lib::result::Result<T, lib::string::String>;
 }
+
+#[cfg(not(feature = "std"))]
+extern crate alloc as stdalloc;
 
 #[prelude_import]
 #[allow(unused_imports)]
@@ -197,9 +209,406 @@ pub mod prelude {
 
 #[doc(hidden)]
 pub mod lib {
+    #[cfg(feature = "std")]
     mod core {
         pub use std::*;
     }
 
+    #[cfg(not(feature = "std"))]
+    mod core {
+        pub use core::*;
+
+        pub use stdalloc::{alloc, borrow, boxed, format, rc, string, string::String, vec};
+
+        pub mod collections {
+            pub use stdalloc::collections::{BTreeMap as HashMap, BTreeSet as HashSet, *};
+
+            pub mod hash_map {
+                pub use super::HashMap;
+                pub use siphasher::sip::SipHasher as DefaultHasher;
+            }
+        }
+
+        pub mod env {
+            #[derive(Debug)]
+            pub struct OsStr;
+
+            impl OsStr {
+                pub fn into_string(self) -> Result<super::String, Self> {
+                    Err(self)
+                }
+            }
+
+            pub fn var(_key: &str) -> Result<super::String, ()> {
+                Err(())
+            }
+
+            pub fn var_os(_key: &str) -> Option<OsStr> {
+                None
+            }
+        }
+
+        pub mod fs {
+            use lib::io::*;
+
+            #[derive(Default)]
+            pub struct OpenOptions {
+                create: bool,
+                truncate: bool,
+            }
+
+            impl OpenOptions {
+                pub fn new() -> Self {
+                    OpenOptions {
+                        ..Default::default()
+                    }
+                }
+
+                pub fn create(&mut self, create: bool) -> &mut Self {
+                    self.create = create;
+                    self
+                }
+
+                pub fn truncate(&mut self, truncate: bool) -> &mut Self {
+                    self.truncate = truncate;
+                    self
+                }
+
+                pub fn read(&mut self, _read: bool) -> &mut Self {
+                    self
+                }
+
+                pub fn write(&mut self, _write: bool) -> &mut Self {
+                    self
+                }
+
+                pub fn open(&self, _path: &str) -> Result<File> {
+                    Err(Error::from(ErrorKind::Other))
+                }
+            }
+
+            pub struct File;
+
+            impl File {
+                pub fn open(_path: &str) -> Option<()> {
+                    None
+                }
+
+                pub fn metadata(&self) -> Result<Metadata> {
+                    Err(Error::from(ErrorKind::Other))
+                }
+
+                pub fn set_len(&self, _size: u64) -> Result<()> {
+                    Err(Error::from(ErrorKind::Other))
+                }
+            }
+
+            impl Write for File {
+                fn write(&mut self, _data: &[u8]) -> Result<usize> {
+                    Err(Error::from(ErrorKind::Other))
+                }
+
+                fn write_all(&mut self, _data: &[u8]) -> Result<()> {
+                    Err(Error::from(ErrorKind::Other))
+                }
+            }
+
+            pub struct Metadata;
+
+            impl Metadata {
+                pub fn is_file(&self) -> bool {
+                    false
+                }
+
+                pub fn len(&self) -> u64 {
+                    0
+                }
+            }
+
+            pub fn metadata(_path: &str) -> Result<Metadata> {
+                Err(Error::from(ErrorKind::Other))
+            }
+
+            pub fn remove_file(_path: &str) -> Result<()> {
+                Err(Error::from(ErrorKind::Other))
+            }
+        }
+
+        pub mod io {
+            use core::{fmt, result};
+
+            pub type Result<T> = result::Result<T, Error>;
+
+            #[derive(Debug)]
+            pub struct Error;
+
+            pub enum ErrorKind {
+                Other,
+            }
+
+            impl Error {
+                pub fn from(_kind: ErrorKind) -> Self {
+                    Error
+                }
+
+                pub fn last_os_error() -> Error {
+                    Error
+                }
+            }
+
+            impl fmt::Display for Error {
+                fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> result::Result<(), fmt::Error> {
+                    Ok(())
+                }
+            }
+
+            pub trait Read {}
+            pub trait Write {
+                fn write(&mut self, data: &[u8]) -> Result<usize>;
+                fn write_all(&mut self, data: &[u8]) -> Result<()>;
+            }
+        }
+
+        pub mod panic {
+            pub use core::panic::*;
+
+            pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R, ()> {
+                Ok(f())
+            }
+        }
+
+        pub mod path {
+            use core::ops;
+
+            #[repr(transparent)]
+            pub struct Path {
+                inner: str,
+            }
+
+            impl Path {
+                pub fn new(s: &str) -> &Path {
+                    unsafe { &*(s as *const str as *const Path) }
+                }
+
+                pub fn exists(&self) -> bool {
+                    false
+                }
+            }
+
+            impl ops::Deref for Path {
+                type Target = str;
+
+                #[inline]
+                fn deref(&self) -> &str {
+                    &self.inner
+                }
+            }
+
+            pub struct PathBuf(String);
+
+            impl PathBuf {
+                pub fn new() -> Self {
+                    PathBuf(String::new())
+                }
+            }
+
+            impl From<&str> for PathBuf {
+                fn from(value: &str) -> Self {
+                    PathBuf(String::from(value))
+                }
+            }
+
+            impl ops::Deref for PathBuf {
+                type Target = Path;
+
+                #[inline]
+                fn deref(&self) -> &Path {
+                    Path::new(&self.0.as_ref())
+                }
+            }
+        }
+
+        pub mod process {
+            pub fn exit(code: i32) -> ! {
+                println!("exitcode: {}", code);
+                loop {}
+            }
+
+            pub fn abort() -> ! {
+                eprintln!("abort");
+                loop {}
+            }
+        }
+
+        pub mod sync {
+            pub use core::sync::*;
+            pub use stdalloc::sync::Arc;
+
+            pub struct Mutex<T>(spin::Mutex<T>);
+
+            pub struct PoisonError<T>(T);
+
+            impl<T> Mutex<T> {
+                pub fn new(t: T) -> Mutex<T> {
+                    Mutex(spin::Mutex::new(t))
+                }
+
+                pub fn lock(
+                    &self,
+                ) -> Result<spin::MutexGuard<T>, PoisonError<spin::MutexGuard<T>>> {
+                    Ok(self.0.lock())
+                }
+            }
+
+            impl<T> PoisonError<T> {
+                pub fn into_inner(self) -> T {
+                    self.0
+                }
+            }
+
+            pub enum TryLockError<T> {
+                Poisoned(PoisonError<T>),
+                WouldBlock,
+            }
+
+            pub type TryLockResult<Guard> = Result<Guard, TryLockError<Guard>>;
+        }
+
+        pub mod thread {
+            use core::marker::PhantomData;
+            use core::num::NonZeroU64;
+
+            pub struct Thread;
+
+            #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Copy, Debug)]
+            pub struct ThreadId {
+                inner: NonZeroU64,
+            }
+
+            struct JoinInner<T> {
+                thread: Thread,
+                phantom: PhantomData<T>,
+            }
+
+            pub struct JoinHandle<T>(JoinInner<T>);
+
+            pub fn current() -> Thread {
+                Thread
+            }
+
+            impl Thread {
+                pub fn id(&self) -> ThreadId {
+                    ThreadId {
+                        inner: unsafe { NonZeroU64::new_unchecked(1) },
+                    }
+                }
+            }
+
+            impl ThreadId {
+                pub fn as_u64(&self) -> NonZeroU64 {
+                    self.inner
+                }
+            }
+
+            pub fn panicking() -> bool {
+                false
+            }
+        }
+
+        pub mod time {
+            pub use core::time::*;
+
+            pub struct Instant {
+                t: u64,
+            }
+
+            impl Instant {
+                pub fn now() -> Instant {
+                    Instant { t: 0 }
+                }
+
+                pub fn elapsed(&mut self) -> Duration {
+                    Duration::new(0, 0)
+                }
+            }
+        }
+
+        #[macro_export]
+        macro_rules! println {
+            () => {};
+            ($($arg:expr),*) => {{
+                $(let _ = $arg;)*
+            }};
+        }
+
+        #[macro_export]
+        macro_rules! eprintln {
+            () => {};
+            ($($arg:expr),*) => {{
+                $(let _ = $arg;)*
+            }};
+        }
+
+        #[macro_export]
+        macro_rules! print {
+            () => {};
+            ($($arg:expr),*) => {{
+                $(let _ = $arg;)*
+            }};
+        }
+
+        pub use {eprintln, print, println};
+    }
+
     pub use self::core::*;
+}
+
+#[cfg(feature = "std")]
+pub mod memmap {
+    pub use ::memmap::*;
+}
+
+#[cfg(not(feature = "std"))]
+pub mod memmap {
+    use lib::fs::File;
+    use lib::io::*;
+    use lib::ops;
+
+    #[derive(Debug)]
+    pub struct MmapOptions {}
+
+    impl MmapOptions {
+        pub fn new() -> Self {
+            MmapOptions {}
+        }
+
+        pub unsafe fn map_mut(&self, _file: &File) -> Result<MmapMut> {
+            Err(Error::from(ErrorKind::Other))
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct MmapMut;
+
+    impl MmapMut {
+        pub fn flush(&self) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    impl ops::Deref for MmapMut {
+        type Target = [u8];
+
+        #[inline]
+        fn deref(&self) -> &[u8] {
+            unsafe { lib::slice::from_raw_parts(lib::ptr::null(), 0) }
+        }
+    }
+
+    impl ops::DerefMut for MmapMut {
+        #[inline]
+        fn deref_mut(&mut self) -> &mut [u8] {
+            unsafe { lib::slice::from_raw_parts_mut(lib::ptr::null_mut(), 0) }
+        }
+    }
 }

@@ -324,6 +324,7 @@ impl AddAssign<&Stat> for Stat {
 }
 
 impl Stat {
+    #[cfg(feature = "std")]
     pub fn save_histograms(&self, _path: &str) -> Result<()> {
         if hist_enabled() {
             for (k, v) in &self.custom {
@@ -355,6 +356,11 @@ impl Stat {
             }
         }
         Ok(())
+    }
+
+    #[cfg(not(feature = "std"))]
+    pub fn save_histograms(&self, _path: &str) -> Result<()> {
+        unimplemented!()
     }
 }
 
@@ -599,4 +605,14 @@ macro_rules! measure {
             $f
         }
     }};
+}
+
+mod f64 {
+    pub fn sqrt(s: f64) -> f64 {
+        unsafe { lib::intrinsics::sqrtf64(s) }
+    }
+
+    pub fn powi(s: f64, n: i32) -> f64 {
+        unsafe { lib::intrinsics::powif64(s, n) }
+    }
 }

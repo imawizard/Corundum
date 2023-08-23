@@ -160,7 +160,7 @@ use lib::mem::MaybeUninit;
 use lib::ops::Deref;
 use lib::panic::RefUnwindSafe;
 use lib::panic::UnwindSafe;
-use lib::*;
+use lib::{borrow, mem};
 
 #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
 use crate::cell::TCell;

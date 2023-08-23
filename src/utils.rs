@@ -1,15 +1,23 @@
 use lib::fmt::{Debug, Error, Formatter};
+#[allow(unused_imports)]
 use lib::fs::File;
+#[allow(unused_imports)]
 use lib::io::Read;
 
 #[cfg(not(feature = "no_flush_alloc"))]
 use crate::ll::*;
 
+#[cfg(feature = "std")]
 pub fn rand() -> i64 {
     let mut buf: [u8; 8] = [0u8; 8];
     let mut f = File::open("/dev/urandom").unwrap();
     f.read_exact(&mut buf).unwrap();
     i64::from_be_bytes(buf)
+}
+
+#[cfg(not(feature = "std"))]
+pub fn rand() -> i64 {
+    unimplemented!()
 }
 
 static mut CRASH_PROB: Option<u64> = None;
@@ -19,12 +27,13 @@ macro_rules! may_crash {
     () => {
         if $crate::utils::can_crash() {
             eprintln!("\nCrashed at {}:{}", file!(), line!());
-            lib::process::exit(0);
+            $crate::lib::process::exit(0);
         }
     };
 }
 
 #[inline]
+#[cfg(feature = "std")]
 pub fn can_crash() -> bool {
     unsafe {
         if let Some(p) = CRASH_PROB {
