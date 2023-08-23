@@ -1,6 +1,6 @@
-use crate::ptr::{LogNonNull,NonNull};
-use crate::convert::PFrom;
 use crate::alloc::MemPool;
+use crate::convert::PFrom;
+use crate::ptr::{LogNonNull, NonNull};
 use crate::stm::Journal;
 use crate::*;
 use std::cell::UnsafeCell;
@@ -243,7 +243,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
         let inner = unsafe { &mut *self.value.get() };
         self.create_log(journal);
 
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] unsafe {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        unsafe {
             if let Some(tmp) = *self.temp {
                 &mut *tmp
             } else {
@@ -251,7 +252,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
             }
         }
 
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             &mut inner.1
         }
     }
@@ -281,7 +283,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     ///
     /// ```
     pub unsafe fn as_mut(&self) -> &mut T {
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             if let Some(tmp) = *self.temp {
                 &mut *tmp
             } else {
@@ -289,7 +292,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
             }
         }
 
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             &mut (*self.value.get()).1
         }
     }
@@ -298,7 +302,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     /// Returns an immutable reference of the inner value
     pub fn as_ref(&self) -> &T {
         unsafe {
-            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+            {
                 if let Some(tmp) = *self.temp {
                     &*tmp
                 } else {
@@ -306,7 +311,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
                 }
             }
 
-            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+            {
                 &(*self.value.get()).1
             }
         }
@@ -329,13 +335,20 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     /// ```
     #[track_caller]
     pub fn borrow(&self) -> Ref<'_, T, A> {
-
-        #[cfg(not(feature = "no_dyn_borrow_checking"))] {
+        #[cfg(not(feature = "no_dyn_borrow_checking"))]
+        {
             let borrow = self.borrow.as_mut();
-            assert!(*borrow <= 0, "Value was already mutably borrowed ({})", *borrow);
+            assert!(
+                *borrow <= 0,
+                "Value was already mutably borrowed ({})",
+                *borrow
+            );
             *borrow = -1;
         }
-        Ref { value: self, phantom: PhantomData }
+        Ref {
+            value: self,
+            phantom: PhantomData,
+        }
     }
 
     #[inline]
@@ -364,7 +377,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     pub(crate) fn create_log(&self, journal: &Journal<A>) {
         unsafe {
             let inner = &mut *self.value.get();
-            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+            {
                 if self.temp.is_none() {
                     if self.temp.is_none() {
                         if let Some(p) = journal.draft(inner) {
@@ -373,12 +387,18 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
                     }
                 }
             }
-            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+            {
                 use crate::ptr::Ptr;
-                use crate::stm::{Notifier, Logger};
+                use crate::stm::{Logger, Notifier};
                 if inner.0 == 0 {
-                    assert!(A::valid(inner), "The object is not in the pool's valid range");
-                    inner.1.create_log(journal, Notifier::NonAtomic(Ptr::from_ref(&inner.0)));
+                    assert!(
+                        A::valid(inner),
+                        "The object is not in the pool's valid range"
+                    );
+                    inner
+                        .1
+                        .create_log(journal, Notifier::NonAtomic(Ptr::from_ref(&inner.0)));
                 }
             }
         }
@@ -468,16 +488,25 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
     #[inline]
     #[track_caller]
     pub fn borrow_mut(&self, journal: &Journal<A>) -> RefMut<'_, T, A> {
-        #[cfg(not(feature = "no_dyn_borrow_checking"))] {
+        #[cfg(not(feature = "no_dyn_borrow_checking"))]
+        {
             let borrow = self.borrow.as_mut();
-            assert!(*borrow >= 0, "Value was already immutably borrowed ({})", *borrow);
-            assert!(*borrow == 0, "Value was already mutably borrowed ({})", *borrow);
+            assert!(
+                *borrow >= 0,
+                "Value was already immutably borrowed ({})",
+                *borrow
+            );
+            assert!(
+                *borrow == 0,
+                "Value was already mutably borrowed ({})",
+                *borrow
+            );
             *borrow = 1;
         }
         RefMut {
             value: unsafe { &mut *(self as *const Self as *mut Self) },
             journal,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -491,10 +520,12 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
     ///
     pub unsafe fn as_non_null_mut(&self, journal: &Journal<A>) -> LogNonNull<T, A> {
         let inner = &mut *self.value.get();
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             LogNonNull::new_unchecked(inner, journal)
         }
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             LogNonNull::new_unchecked(&mut inner.1, &mut inner.0, journal)
         }
     }
@@ -503,10 +534,12 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
     pub fn as_non_null(&self) -> NonNull<T> {
         unsafe {
             let inner = &mut *self.value.get();
-            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+            {
                 NonNull::new_unchecked(inner)
             }
-            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+            {
                 NonNull::new_unchecked(&mut inner.1)
             }
         }
@@ -573,7 +606,7 @@ impl<T: PSafe + Ord + ?Sized, A: MemPool> Ord for PRefCell<T, A> {
 
 pub struct Ref<'b, T: 'b + PSafe + ?Sized, A: MemPool> {
     value: *const PRefCell<T, A>,
-    phantom: PhantomData<&'b T>
+    phantom: PhantomData<&'b T>,
 }
 
 impl<T: ?Sized, A: MemPool> !TxOutSafe for Ref<'_, T, A> {}
@@ -593,12 +626,16 @@ impl<'b, T: PSafe + ?Sized, A: MemPool> Ref<'b, T, A> {
     #[inline]
     #[track_caller]
     pub fn clone(orig: &Ref<'b, T, A>) -> Ref<'b, T, A> {
-        #[cfg(not(feature = "no_dyn_borrow_checking"))] {
-            let borrow = unsafe {(*orig.value).borrow.as_mut()};
+        #[cfg(not(feature = "no_dyn_borrow_checking"))]
+        {
+            let borrow = unsafe { (*orig.value).borrow.as_mut() };
             assert!(*borrow > i8::MIN);
             *borrow -= 1;
         }
-        Ref { value: orig.value, phantom: PhantomData }
+        Ref {
+            value: orig.value,
+            phantom: PhantomData,
+        }
     }
 
     /// Convert into a reference to the underlying data.
@@ -630,7 +667,7 @@ impl<'b, T: PSafe + ?Sized, A: MemPool> Ref<'b, T, A> {
         // UNUSED within the lifetime `'b`. Resetting the reference tracking state would require a
         // unique reference to the borrowed RefCell. No further mutable references can be created
         // from the original cell.
-        unsafe {(*orig.value).as_ref()}
+        unsafe { (*orig.value).as_ref() }
     }
 }
 
@@ -645,7 +682,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Ref<'_, T, A> {
     pub fn own<'a, 'b>(orig: Ref<'a, T, A>) -> Ref<'b, T, A> {
         let res = Ref {
             value: orig.value,
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         std::mem::forget(orig);
         res
@@ -664,20 +701,21 @@ impl<T: PSafe + ?Sized, A: MemPool> Deref for Ref<'_, T, A> {
 
     #[inline]
     fn deref(&self) -> &T {
-        unsafe {(*self.value).as_ref()}
+        unsafe { (*self.value).as_ref() }
     }
 }
 
 impl<T: fmt::Display + PSafe, A: MemPool> fmt::Display for Ref<'_, T, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        unsafe {(*self.value).fmt(f)}
+        unsafe { (*self.value).fmt(f) }
     }
 }
 
 impl<T: PSafe + ?Sized, A: MemPool> Drop for Ref<'_, T, A> {
     fn drop(&mut self) {
-        #[cfg(not(feature = "no_dyn_borrow_checking"))] {
-            let borrow = unsafe {(*self.value).borrow.as_mut()};
+        #[cfg(not(feature = "no_dyn_borrow_checking"))]
+        {
+            let borrow = unsafe { (*self.value).borrow.as_mut() };
             *borrow += 1;
         }
     }
@@ -686,7 +724,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Drop for Ref<'_, T, A> {
 pub struct RefMut<'b, T: 'b + PSafe + ?Sized, A: MemPool> {
     value: *mut PRefCell<T, A>,
     journal: *const Journal<A>,
-    phantom: PhantomData<&'b T>
+    phantom: PhantomData<&'b T>,
 }
 
 impl<T: ?Sized, A: MemPool> !TxOutSafe for RefMut<'_, T, A> {}
@@ -706,7 +744,7 @@ impl<T: PSafe + ?Sized, A: MemPool> RefMut<'_, T, A> {
         let res = RefMut {
             value: orig.value,
             journal: orig.journal,
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         std::mem::forget(orig);
         res
@@ -758,7 +796,8 @@ impl<T: fmt::Debug + PSafe + ?Sized, A: MemPool> fmt::Debug for RefMut<'_, T, A>
 
 impl<T: PSafe + ?Sized, A: MemPool> Drop for RefMut<'_, T, A> {
     fn drop(&mut self) {
-        #[cfg(not(feature = "no_dyn_borrow_checking"))] unsafe {
+        #[cfg(not(feature = "no_dyn_borrow_checking"))]
+        unsafe {
             let borrow = (*self.value).borrow.as_mut();
             *borrow -= 1;
         }

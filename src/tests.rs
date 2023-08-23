@@ -1,24 +1,25 @@
 #[cfg(test)]
 pub(crate) mod problems {
-    use crate::MemPool;
-    use crate::default::*;
     use crate::boxed::Pbox;
     use crate::cell::*;
-    use crate::stm::*;
-    use crate::stm::Journal;
+    use crate::default::*;
     use crate::open_flags::*;
+    use crate::stm::Journal;
+    use crate::stm::*;
+    use crate::MemPool;
 
     #[test]
     fn vec_to_slice_test() {
-        use crate::vec::Vec;
         use crate::alloc::heap::*;
+        use crate::vec::Vec;
         Heap::transaction(|j| {
-            let mut vec = Vec::from_slice(&[1,2,3], j);
+            let mut vec = Vec::from_slice(&[1, 2, 3], j);
             let s = vec.as_slice_mut(j);
             s[1] = 0;
-            assert_eq!(s,   [1, 0, 3]);
+            assert_eq!(s, [1, 0, 3]);
             assert_eq!(vec, [1, 0, 3]);
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
@@ -137,28 +138,39 @@ pub(crate) mod problems {
     fn paper() {
         use crate::default::*;
         type P = Allocator;
-        struct Node { val: i32, next: PRefCell<Option<Pbox<Node>>> }
-        impl RootObj<P> for Node {
-            fn init(_j: &Journal) -> Self { Self{
-                val: 0, next: PRefCell::new(None)
-            }}
+        struct Node {
+            val: i32,
+            next: PRefCell<Option<Pbox<Node>>>,
         }
-        fn append(n: &Node, v:i32, j: &Journal) {
+        impl RootObj<P> for Node {
+            fn init(_j: &Journal) -> Self {
+                Self {
+                    val: 0,
+                    next: PRefCell::new(None),
+                }
+            }
+        }
+        fn append(n: &Node, v: i32, j: &Journal) {
             let mut t = n.next.borrow_mut(j);
             match &*t {
                 Some(succ) => append(succ, v, j),
-                None => *t = Some(Pbox::new(
-                    Node {
-                    val: v,
-                    next: PRefCell::new(None)
-                    }, j))
+                None => {
+                    *t = Some(Pbox::new(
+                        Node {
+                            val: v,
+                            next: PRefCell::new(None),
+                        },
+                        j,
+                    ))
+                }
             }
         }
         fn go(v: i32) {
-            let head = Allocator::open::<Node>("list.pool",O_CFNE).unwrap();
+            let head = Allocator::open::<Node>("list.pool", O_CFNE).unwrap();
             transaction(|j| {
                 append(&head, v, j);
-            }).unwrap();
+            })
+            .unwrap();
         }
 
         fn print(n: &Node) {
@@ -171,7 +183,7 @@ pub(crate) mod problems {
         }
 
         fn print_all() {
-            let head = Allocator::open::<Node>("list.pool",O_CFNE).unwrap();
+            let head = Allocator::open::<Node>("list.pool", O_CFNE).unwrap();
             print(&head);
             println!();
         }
@@ -283,7 +295,7 @@ pub(crate) mod problems {
         P::transaction(|j| {
             let root = Parc::new(10, j);
             let b = root.demote(); // Panics here because `pack` should be called
-                                 // outside transaction
+                                   // outside transaction
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_millis(900));
                 P::transaction(|j| {
@@ -292,10 +304,12 @@ pub(crate) mod problems {
                         std::thread::sleep(Duration::from_millis(2000));
                         std::process::exit(0); // Memory leak may happen here
                     }
-                }).unwrap();
+                })
+                .unwrap();
             });
             std::thread::sleep(Duration::from_millis(1000));
-        }).unwrap();
+        })
+        .unwrap();
         crate::tests::test::print_usage(1);
     }
 
@@ -341,7 +355,8 @@ pub(crate) mod problems {
 
             println!("b rc count after changing a = {}", Prc::strong_count(&b));
             println!("a rc count after changing a = {}", Prc::strong_count(&a));
-        }).unwrap();
+        })
+        .unwrap();
         println!("usage 2: {}", P::used());
     }
 
@@ -367,7 +382,6 @@ pub(crate) mod problems {
             let vp = Prc::demote(&root.v.borrow());
             P::transaction(|j| {
                 if let Some(p) = vp.promote(j) {
-
                     let _vp2 = Prc::demote(&p);
                     // drop a recently created volatile reference
                     let _vp2 = Prc::demote(&p);
@@ -420,8 +434,8 @@ pub(crate) mod problems {
 
     #[test]
     fn chaperon_swap() {
-        use crate::cell::PRefCell as RefCell;
         use crate::boxed::Pbox;
+        use crate::cell::PRefCell as RefCell;
 
         crate::pool!(pool1, P1);
         crate::pool!(pool2, P2);
@@ -434,7 +448,8 @@ pub(crate) mod problems {
                 let mut root = root.borrow_mut(j);
                 *root = v;
                 *root
-            }).unwrap()
+            })
+            .unwrap()
         }
 
         let root1 = P1::open::<Pbox<RefCell<i32, P1>, P1>>("pool5.pool", O_CFNE).unwrap();
@@ -452,7 +467,8 @@ pub(crate) mod problems {
                     *root = 10;
                 }
                 old
-            }).unwrap();
+            })
+            .unwrap();
             P2::transaction(|j| {
                 // <-- Creates a Journal<P2>
                 let mut root = root2.borrow_mut(j);
@@ -461,7 +477,8 @@ pub(crate) mod problems {
                     *root = 20;
                 }
                 // std::process::exit(0);
-            }).unwrap();
+            })
+            .unwrap();
             // let _other = foo::<P1>(&root1, 20); // <-- foo dose not commit here (postponed) because a trans is open
             // std::process::exit(0);
         });
@@ -495,7 +512,8 @@ pub(crate) mod problems {
             *e = 30; // The original PRefCell won't change
 
             // `d` is still available here
-        }).unwrap();
+        })
+        .unwrap();
 
         assert_eq!(25, *root.borrow());
     }
@@ -553,7 +571,7 @@ pub(crate) mod problems {
         let c1 = root.demote();
         let c2 = root.demote();
         let t1 = std::thread::spawn(move || {
-            let _=P::transaction(|j| {
+            let _ = P::transaction(|j| {
                 if let Some(p) = c2.promote(j) {
                     let m = p.pclone(j);
                     println!("strong(t1) = {}", Parc::strong_count(&m));
@@ -585,14 +603,14 @@ pub(crate) mod problems {
 #[cfg(test)]
 pub(crate) mod test {
     use crate::alloc::heap::Heap;
-    use crate::default::*;
     use crate::cell::*;
+    use crate::default::*;
+    use crate::open_flags::*;
     use crate::prc::*;
-    use crate::stm::*;
     use crate::stm::Journal;
+    use crate::stm::*;
     use crate::sync::PMutex;
     use crate::*;
-    use crate::open_flags::*;
 
     type A = Allocator;
 
@@ -888,8 +906,7 @@ pub(crate) mod test {
         }
 
         transaction(|j| {
-            let shared_root: Prc<PRefCell<Cell>> =
-                Prc::new(PRefCell::new(Cell::new(10)), j);
+            let shared_root: Prc<PRefCell<Cell>> = Prc::new(PRefCell::new(Cell::new(10)), j);
             // Create a new block to limit the scope of the dynamic borrow
             {
                 let mut root = shared_root.borrow_mut(j);
@@ -914,9 +931,9 @@ pub(crate) mod test {
 
     #[test]
     fn test_nv_to_v() {
-        use std::cell::RefCell;
         use crate::default::*;
         use crate::stm::Journal;
+        use std::cell::RefCell;
 
         let root = A::open::<Cell>("nv2v.pool", O_CFNE).unwrap();
 
@@ -994,11 +1011,11 @@ pub(crate) mod test {
 
     #[test]
     fn test_sort_insert_volatile() {
-        use std::rc::*;
         use std::cell::*;
+        use std::rc::*;
         struct Node {
-          val: i32,
-          next: Rc<RefCell<Option<Node>>>
+            val: i32,
+            next: Rc<RefCell<Option<Node>>>,
         }
         impl Node {
             fn insert(&self, val: i32) {
@@ -1007,7 +1024,7 @@ pub(crate) mod test {
                     if next.val > val {
                         *next = Node {
                             val,
-                            next: self.next.clone()
+                            next: self.next.clone(),
                         }
                     } else {
                         next.insert(val);
@@ -1015,7 +1032,7 @@ pub(crate) mod test {
                 } else {
                     *next = Some(Node {
                         val,
-                        next: Rc::new(RefCell::new(None))
+                        next: Rc::new(RefCell::new(None)),
                     })
                 }
             }
@@ -1025,18 +1042,18 @@ pub(crate) mod test {
     fn test_sort_insert_pmem() {
         use crate::default::*;
         struct Node {
-          val: i32,
-          next: Prc<PRefCell<Option<Node>>>
+            val: i32,
+            next: Prc<PRefCell<Option<Node>>>,
         }
         impl Node {
             fn insert(&self, val: i32) {
-                transaction(|j|{
+                transaction(|j| {
                     let mut next = self.next.borrow_mut(j);
                     if let Some(n) = &*next {
                         if n.val > val {
                             *next = Some(Node {
                                 val,
-                                next: self.next.pclone(j)
+                                next: self.next.pclone(j),
                             })
                         } else {
                             n.insert(val);
@@ -1044,10 +1061,11 @@ pub(crate) mod test {
                     } else {
                         *next = Some(Node {
                             val,
-                            next: Prc::new(PRefCell::new(None), j)
+                            next: Prc::new(PRefCell::new(None), j),
                         })
                     }
-                }).unwrap()
+                })
+                .unwrap()
             }
         }
     }
@@ -1088,8 +1106,7 @@ pub(crate) mod test {
             // Create a reference-counted `Owner`. Note that we've put the `Owner`'s
             // vector of `Gadget`s inside a `RefCell` so that we can mutate it through
             // a shared reference.
-            let gadget_owner: Prc<PRefCell<Owner>> =
-                Prc::new(PRefCell::new(Owner::new("Dany")), j);
+            let gadget_owner: Prc<PRefCell<Owner>> = Prc::new(PRefCell::new(Owner::new("Dany")), j);
             print_usage(1);
 
             // Create `Gadget`s belonging to `gadget_owner`, as before.
@@ -1173,7 +1190,7 @@ pub(crate) mod test {
     #[test]
     #[allow(clippy::comparison_chain)]
     fn test_dblist() {
-        use crate::default::{*, prc::PWeak};
+        use crate::default::{prc::PWeak, *};
 
         struct SB {
             root: Prc<PRefCell<Node<i32>>>,
@@ -1527,7 +1544,8 @@ pub(crate) mod test {
             // the Arc is protected with a mutex.
             let _data = Parc::new(10, j);
             let _weak_five = Parc::downgrade(&_data, j);
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
@@ -1843,7 +1861,8 @@ pub(crate) mod test {
             c.set(20, j);
             let mut m = m.lock(j);
             *m = 20;
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
@@ -1853,14 +1872,13 @@ pub(crate) mod test {
         type P = Allocator;
 
         struct Obj {
-            val: prc::VWeak<i32>
+            val: prc::VWeak<i32>,
         }
 
         impl std::fmt::Display for Obj {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-                transaction(AssertTxInSafe(|j| {
-                    writeln!(f, "{:?}", self.val.promote(j))
-                })).unwrap()?;
+                transaction(AssertTxInSafe(|j| writeln!(f, "{:?}", self.val.promote(j))))
+                    .unwrap()?;
                 Ok(())
             }
         }

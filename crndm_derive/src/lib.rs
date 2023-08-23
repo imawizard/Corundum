@@ -2,24 +2,24 @@
 #![feature(type_name_of_val)]
 #![feature(proc_macro_span)]
 
+use proc_macro::TokenStream;
 use proc_macro2::Group;
+use quote::quote;
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
-use proc_macro::TokenStream;
-use quote::quote;
 use syn::*;
 
-extern crate syn;
+extern crate cbindgen;
 extern crate proc_macro;
 extern crate quote;
-extern crate cbindgen;
+extern crate syn;
 
 #[macro_use]
 extern crate proc_macro_error;
 
+mod cbinding;
 mod pclone;
 mod root;
-mod cbinding;
 
 #[proc_macro_error]
 #[proc_macro_derive(PClone, attributes(pools))]
@@ -34,7 +34,7 @@ pub fn derive_root(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(Export, attributes(mods,attrs))]
+#[proc_macro_derive(Export, attributes(mods, attrs))]
 pub fn derive_cbindgen(input: TokenStream) -> TokenStream {
     cbinding::derive_cbindgen(input)
 }
@@ -62,7 +62,7 @@ fn list(attrs: &Vec<Attribute>, name: &str) -> Vec<proc_macro2::TokenStream> {
         }
     }
     if ret.is_empty() && name == "pools" {
-        vec![quote!{ corundum::default::Allocator }]
+        vec![quote! { corundum::default::Allocator }]
     } else {
         ret
     }
@@ -82,7 +82,7 @@ pub fn generate(input: TokenStream) -> TokenStream {
 
     let mut overwrite = false;
     let mut warning = true;
-    let mut dir: Option<(PathBuf,proc_macro2::Span)> = None;
+    let mut dir: Option<(PathBuf, proc_macro2::Span)> = None;
 
     let parser = Punctuated::<Expr, Token![,]>::parse_terminated;
     if let Ok(list) = parser.parse2(input.into()) {
@@ -95,7 +95,7 @@ pub fn generate(input: TokenStream) -> TokenStream {
                                 if !if let Expr::Lit(p) = &*ass.right {
                                     if let Lit::Str(d) = &p.lit {
                                         let dr = PathBuf::from(d.value());
-                                        dir = Some((dr,d.span()));
+                                        dir = Some((dr, d.span()));
                                         true
                                     } else {
                                         false
@@ -146,7 +146,7 @@ pub fn generate(input: TokenStream) -> TokenStream {
                                 }
                                 true
                             }
-                            _ => { false }
+                            _ => false,
                         }
                     } else {
                         false
@@ -168,7 +168,7 @@ pub fn generate(input: TokenStream) -> TokenStream {
         }
     }
 
-    if let Some((dir,span)) = dir {
+    if let Some((dir, span)) = dir {
         if let Err(err) = cbinding::export(dir, span, overwrite, warning) {
             abort_call_site!(
                 "header files generation failed";

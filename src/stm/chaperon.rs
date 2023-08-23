@@ -1,6 +1,6 @@
-use crate::result::Result;
 use crate::cell::LazyCell;
-use crate::{TxInSafe, TxOutSafe, utils};
+use crate::result::Result;
+use crate::{utils, TxInSafe, TxOutSafe};
 use std::collections::hash_map::HashMap;
 use std::fmt::{self, Debug};
 use std::fs::OpenOptions;
@@ -63,7 +63,7 @@ unsafe impl Send for Chaperon {}
 unsafe impl Sync for Chaperon {}
 
 struct SyncBox<T: ?Sized> {
-    data: *mut T
+    data: *mut T,
 }
 
 impl<T: ?Sized> SyncBox<T> {
@@ -76,8 +76,8 @@ impl<T: ?Sized> SyncBox<T> {
     }
 }
 
-unsafe impl<T:?Sized> Sync for SyncBox<T> {}
-unsafe impl<T:?Sized> Send for SyncBox<T> {}
+unsafe impl<T: ?Sized> Sync for SyncBox<T> {}
+unsafe impl<T: ?Sized> Send for SyncBox<T> {}
 
 static mut CLIST: LazyCell<Mutex<HashMap<ThreadId, SyncBox<Chaperon>>>> =
     LazyCell::new(|| Mutex::new(HashMap::new()));
@@ -85,7 +85,7 @@ static mut CLIST: LazyCell<Mutex<HashMap<ThreadId, SyncBox<Chaperon>>>> =
 fn new_chaperon(filename: &str) -> Result<*mut Chaperon> {
     let mut clist = match unsafe { CLIST.lock() } {
         Ok(g) => g,
-        Err(p) => p.into_inner()
+        Err(p) => p.into_inner(),
     };
     let tid = thread::current().id();
     if clist.contains_key(&tid) {
@@ -100,7 +100,7 @@ fn new_chaperon(filename: &str) -> Result<*mut Chaperon> {
 fn drop_chaperon() {
     let mut clist = match unsafe { CLIST.lock() } {
         Ok(g) => g,
-        Err(p) => p.into_inner()
+        Err(p) => p.into_inner(),
     };
     let tid = thread::current().id();
     clist.remove(&tid);
@@ -109,7 +109,7 @@ fn drop_chaperon() {
 fn current_chaperon() -> Option<*mut Chaperon> {
     let clist = match unsafe { CLIST.lock() } {
         Ok(g) => g,
-        Err(p) => p.into_inner()
+        Err(p) => p.into_inner(),
     };
     let tid = thread::current().id();
     if clist.contains_key(&tid) {
@@ -235,9 +235,9 @@ impl Chaperon {
 
     pub(crate) fn postpone(
         &mut self,
-        commit: unsafe fn()->(),
-        rollback: unsafe fn()->(),
-        clear: unsafe fn()->(),
+        commit: unsafe fn() -> (),
+        rollback: unsafe fn() -> (),
+        clear: unsafe fn() -> (),
     ) {
         if let Some(vdata) = self.vdata.as_mut() {
             let tid = thread::current().id();
@@ -256,11 +256,15 @@ impl Chaperon {
             let commits = vdata.delayed_commit.entry(tid).or_insert(Vec::new());
             let clears = vdata.delayed_clear.entry(tid).or_insert(Vec::new());
             for commit in commits {
-                unsafe { commit(); }
+                unsafe {
+                    commit();
+                }
             }
             self.completed = true;
             for clear in clears {
-                unsafe { clear(); }
+                unsafe {
+                    clear();
+                }
             }
             vdata.delayed_commit.remove(&tid);
             vdata.delayed_clear.remove(&tid);
@@ -274,11 +278,15 @@ impl Chaperon {
             let rollbacks = vdata.delayed_rollback.entry(tid).or_insert(Vec::new());
             let clears = vdata.delayed_clear.entry(tid).or_insert(Vec::new());
             for rollback in rollbacks {
-                unsafe { rollback(); }
+                unsafe {
+                    rollback();
+                }
             }
             self.completed = true;
             for clear in clears {
-                unsafe { clear(); }
+                unsafe {
+                    clear();
+                }
             }
             vdata.delayed_rollback.remove(&tid);
             vdata.delayed_clear.remove(&tid);

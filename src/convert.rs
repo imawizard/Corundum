@@ -1,5 +1,5 @@
-use crate::stm::Journal;
 use crate::alloc::MemPool;
+use crate::stm::Journal;
 
 /// An equivalent to [`From`] for persistent memory which requires a [`Journal`]
 /// to operate

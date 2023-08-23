@@ -1,24 +1,24 @@
 #![allow(dead_code)]
 
-use std::fmt::Display;
 use std::collections::hash_map::DefaultHasher;
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
-use crate::*;
 use crate::alloc::*;
-use crate::vec::Vec as PVec;
 use crate::cell::PRefCell;
-use crate::stm::Journal;
 use crate::clone::PClone;
 use crate::gen::Allocatable;
+use crate::stm::Journal;
+use crate::vec::Vec as PVec;
+use crate::*;
 
 const BUCKETS_MAX: usize = 16;
 
-type Bucket<K, P: MemPool> = PVec<PRefCell<(K, usize),P>,P>;
+type Bucket<K, P: MemPool> = PVec<PRefCell<(K, usize), P>, P>;
 
 pub struct HashMap<K: PSafe, V: PSafe, P: MemPool> {
-    buckets: PVec<PRefCell<Bucket<K,P>,P>,P>,
-    values: PVec<PRefCell<V,P>,P>,
+    buckets: PVec<PRefCell<Bucket<K, P>, P>, P>,
+    values: PVec<PRefCell<V, P>, P>,
 }
 
 impl<K: PartialEq + Hash + PSafe, V: PSafe, P: MemPool> RootObj<P> for HashMap<K, V, P> {
@@ -40,7 +40,7 @@ impl<K: PSafe, V: PSafe, P: MemPool> HashMap<K, V, P> {
 
 impl<K: PSafe, V: PSafe, P: MemPool> HashMap<K, V, P>
 where
-    K: PartialEq + Hash
+    K: PartialEq + Hash,
 {
     pub fn new(j: &Journal<P>) -> Self {
         let mut buckets = PVec::with_capacity(BUCKETS_MAX, j);
@@ -68,7 +68,9 @@ where
     }
 
     pub fn get_with_hash<Key>(&self, key: Key, key_hash: u64) -> Option<&V>
-    where K: PartialEq<Key> {
+    where
+        K: PartialEq<Key>,
+    {
         let index = (key_hash as usize) % BUCKETS_MAX;
 
         for e in &*self.buckets[index].borrow() {
@@ -99,7 +101,9 @@ where
     }
 
     pub fn put_with_hash<Key>(&mut self, key: Key, key_hash: u64, val: V, j: &Journal<P>)
-    where K: PartialEq<Key> + PFrom<Key, P> {
+    where
+        K: PartialEq<Key> + PFrom<Key, P>,
+    {
         let index = (key_hash as usize) % BUCKETS_MAX;
         let mut bucket = self.buckets[index].borrow_mut(j);
 
@@ -115,7 +119,7 @@ where
         bucket.push(PRefCell::new((K::pfrom(key, j), self.values.len() - 1)), j);
     }
 
-    pub fn get_or_insert<F: FnOnce()->V>(&mut self, key: K, f: F, j: &Journal<P>) -> &V {
+    pub fn get_or_insert<F: FnOnce() -> V>(&mut self, key: K, f: F, j: &Journal<P>) -> &V {
         let mut hasher = DefaultHasher::new();
         key.hash(&mut hasher);
         let index = (hasher.finish() as usize) % BUCKETS_MAX;
@@ -129,8 +133,15 @@ where
         self.put_once(key, f(), j)
     }
 
-    pub fn get_or_insert_with_hash<Key, F: FnOnce()->V>(&mut self, key: Key, key_hash: u64, f: F, j: &Journal<P>) -> &V
-    where K: PartialEq<Key> + PFrom<Key, P>
+    pub fn get_or_insert_with_hash<Key, F: FnOnce() -> V>(
+        &mut self,
+        key: Key,
+        key_hash: u64,
+        f: F,
+        j: &Journal<P>,
+    ) -> &V
+    where
+        K: PartialEq<Key> + PFrom<Key, P>,
     {
         let index = (key_hash as usize) % BUCKETS_MAX;
 
@@ -175,17 +186,20 @@ where
         let mut new = V::default();
         f(&mut new);
         self.values.push(PRefCell::new(new), j);
-        bucket.push(
-            PRefCell::new((key.pclone(j), self.values.len() - 1)),
-            j,
-        );
+        bucket.push(PRefCell::new((key.pclone(j), self.values.len() - 1)), j);
     }
 
-    pub fn update_with_hash<Key, Value, F: FnOnce(&mut Value)>(&mut self, key: &Key, value_size: usize, key_hash: u64, j: &Journal<P>, f: F)
-    where
+    pub fn update_with_hash<Key, Value, F: FnOnce(&mut Value)>(
+        &mut self,
+        key: &Key,
+        value_size: usize,
+        key_hash: u64,
+        j: &Journal<P>,
+        f: F,
+    ) where
         V: Allocatable<Value, P>,
         K: PClone<P> + PartialEq<Key> + PFrom<Key, P>,
-        Key: Clone
+        Key: Clone,
     {
         let index = (key_hash as usize) % BUCKETS_MAX;
         let mut bucket = self.buckets[index].borrow_mut(j);

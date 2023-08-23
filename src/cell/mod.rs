@@ -1,15 +1,15 @@
 //! Persistent shareable mutable containers
 
 mod cell;
+mod lazy;
 mod refcell;
 mod rootcell;
-mod vcell;
 mod tcell;
-mod lazy;
+mod vcell;
 
 pub use cell::*;
+pub use lazy::*;
 pub use refcell::*;
 pub use rootcell::*;
-pub use vcell::*;
 pub use tcell::*;
-pub use lazy::*;
+pub use vcell::*;

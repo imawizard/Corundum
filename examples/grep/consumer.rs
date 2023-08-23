@@ -1,10 +1,10 @@
-use std::fmt::Display;
 use crate::hashmap::HashMap;
 use crate::stack::Stack;
 use corundum::default::*;
+use corundum::may_crash;
 use corundum::sync::VWeak;
 use regex::Regex;
-use corundum::may_crash;
+use std::fmt::Display;
 
 type P = Allocator;
 
@@ -22,22 +22,16 @@ pub struct Consumer {
 }
 
 impl Consumer {
-    pub fn new(
-        pattern: &str,
-        lines: Parc<PMutex<Stack<PString>>>,
-        j: &Journal,
-    ) -> Self {
+    pub fn new(pattern: &str, lines: Parc<PMutex<Stack<PString>>>, j: &Journal) -> Self {
         Self {
             pattern: PString::from_str(pattern, j),
             lines,
-            data: PMutex::new(
-                ConsumerData {
-                    buf: PString::new(),
-                    private_lines: Stack::new(),
-                    local: HashMap::new(j),
-                    active: true,
-                }
-            ),
+            data: PMutex::new(ConsumerData {
+                buf: PString::new(),
+                private_lines: Stack::new(),
+                local: HashMap::new(j),
+                active: true,
+            }),
         }
     }
 
@@ -89,20 +83,30 @@ impl Consumer {
 
             // counting words
             P::transaction(|j| {
-                if let Some(slf) = slf.promote(j) {                             may_crash!();
-                    let mut this = slf.data.lock(j);                            may_crash!();
-                    if !this.buf.is_empty() {                                   may_crash!();
-                        let buf = this.buf.to_string();                         may_crash!();
-                        let re = Regex::new(slf.pattern.as_str()).unwrap();     may_crash!();
+                if let Some(slf) = slf.promote(j) {
+                    may_crash!();
+                    let mut this = slf.data.lock(j);
+                    may_crash!();
+                    if !this.buf.is_empty() {
+                        may_crash!();
+                        let buf = this.buf.to_string();
+                        may_crash!();
+                        let re = Regex::new(slf.pattern.as_str()).unwrap();
+                        may_crash!();
 
-                        for cap in re.captures_iter(&buf) {                     may_crash!();
-                            let w = cap.get(1).unwrap().as_str().to_pstring(j); may_crash!();
-                            this.local.update_with(&w, j, |v| v + 1);           may_crash!();
+                        for cap in re.captures_iter(&buf) {
+                            may_crash!();
+                            let w = cap.get(1).unwrap().as_str().to_pstring(j);
+                            may_crash!();
+                            this.local.update_with(&w, j, |v| v + 1);
+                            may_crash!();
                         }
-                        this.buf.clear();                                       may_crash!();
+                        this.buf.clear();
+                        may_crash!();
                     }
                 }
-            }).unwrap();
+            })
+            .unwrap();
         }
     }
 
@@ -119,14 +123,16 @@ impl Consumer {
         P::transaction(|j| {
             let mut this = self.data.lock(j);
             this.active = false;
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     pub fn activate(&self) {
         P::transaction(|j| {
             let mut this = self.data.lock(j);
             this.active = true;
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     pub fn take_one(&self, lines: &mut Stack<PString>, j: &Journal) -> bool {
@@ -143,7 +149,8 @@ impl Consumer {
         P::transaction(|j| {
             let this = self.data.lock(j);
             this.private_lines.len()
-        }).unwrap()
+        })
+        .unwrap()
     }
 }
 
@@ -152,7 +159,8 @@ impl Display for Consumer {
         let s = P::transaction(move |j| {
             let data = self.data.lock(j);
             format!("local:\n\x1b[0;31m{}\x1b[0m", data.local)
-        }).unwrap();
+        })
+        .unwrap();
         writeln!(f, "{}", s)?;
         Ok(())
     }

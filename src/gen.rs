@@ -1,17 +1,17 @@
 #![cfg(feature = "cbindings")]
 
 // use std::hash::*;
-use std::ops::Deref;
-use std::marker::PhantomData;
-use std::mem::MaybeUninit;
-use std::panic::{UnwindSafe, RefUnwindSafe};
-use std::mem::size_of;
-use crate::*;
-use crate::stm::Journal;
-use crate::clone::PClone;
 use crate::alloc::*;
+use crate::clone::PClone;
 use crate::ptr::*;
-use crate::stm::{Logger,Notifier};
+use crate::stm::Journal;
+use crate::stm::{Logger, Notifier};
+use crate::*;
+use std::marker::PhantomData;
+use std::mem::size_of;
+use std::mem::MaybeUninit;
+use std::ops::Deref;
+use std::panic::{RefUnwindSafe, UnwindSafe};
 
 pub static mut CODE_SEGMENT_BASE: i64 = 0;
 
@@ -20,7 +20,7 @@ pub struct Gen<T, P: MemPool> {
     ptr: *const c_void,
     len: usize,
     destructor_address: i64,
-    phantom: PhantomData<(T,P)>
+    phantom: PhantomData<(T, P)>,
 }
 
 unsafe impl<T, P: MemPool> TxInSafe for Gen<T, P> {}
@@ -55,7 +55,7 @@ pub struct ByteArray<T, P: MemPool> {
     bytes: Slice<u8, P>,
     destructor_address: i64,
     logged: u8,
-    phantom: PhantomData<T>
+    phantom: PhantomData<T>,
 }
 
 // impl<P: MemPool> Copy for ByteArray<P> {}
@@ -76,7 +76,10 @@ impl<T, P: MemPool> RefUnwindSafe for ByteArray<T, P> {}
 //     }
 // }
 
-pub trait Allocatable<T, P: MemPool> where Self: Sized {
+pub trait Allocatable<T, P: MemPool>
+where
+    Self: Sized,
+{
     unsafe fn alloc(size: usize, j: &Journal<P>) -> Self;
     unsafe fn alloc_zeroed(size: usize, j: &Journal<P>) -> Self;
     fn as_ref(&self) -> &T;
@@ -84,10 +87,18 @@ pub trait Allocatable<T, P: MemPool> where Self: Sized {
 }
 
 impl<T: Default + Sized, P: MemPool> Allocatable<T, P> for T {
-    unsafe fn alloc(_: usize, _: &Journal<P>) -> Self { Self::default() }
-    unsafe fn alloc_zeroed(_: usize, _: &Journal<P>) -> Self { Self::default() }
-    fn as_ref(&self) -> &T { self }
-    fn as_mut(&mut self) -> &mut T { self }
+    unsafe fn alloc(_: usize, _: &Journal<P>) -> Self {
+        Self::default()
+    }
+    unsafe fn alloc_zeroed(_: usize, _: &Journal<P>) -> Self {
+        Self::default()
+    }
+    fn as_ref(&self) -> &T {
+        self
+    }
+    fn as_mut(&mut self) -> &mut T {
+        self
+    }
 }
 
 impl<T: PSafe, P: MemPool> Allocatable<T, P> for ByteArray<T, P> {
@@ -98,19 +109,19 @@ impl<T: PSafe, P: MemPool> Allocatable<T, P> for ByteArray<T, P> {
             bytes: Slice::from_raw_parts(ptr, size),
             destructor_address: 0,
             logged: 0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
     #[inline]
     unsafe fn alloc_zeroed(size: usize, j: &Journal<P>) -> Self {
-        let z = vec![0u8;size];
+        let z = vec![0u8; size];
         let ptr = P::new_copy_slice(z.as_slice(), j);
         Self {
             bytes: Slice::from_raw_parts(ptr.as_ptr(), size),
             destructor_address: 0,
             logged: 0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -131,7 +142,7 @@ impl<T, P: MemPool> PClone<P> for ByteArray<T, P> {
             bytes: self.bytes.pclone(j),
             destructor_address: self.destructor_address,
             logged: 0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -142,12 +153,12 @@ impl<T, P: MemPool> Drop for ByteArray<T, P> {
             if !self.bytes.is_empty() {
                 let ptr = self.bytes.as_mut_ptr();
                 if self.destructor_address != 0 {
-                    let addr = self.destructor_address+CODE_SEGMENT_BASE;
+                    let addr = self.destructor_address + CODE_SEGMENT_BASE;
                     union U {
                         addr: i64,
-                        drop: extern "C" fn(*mut c_void)->()
+                        drop: extern "C" fn(*mut c_void) -> (),
                     }
-                    (U {addr}.drop)(ptr as *mut c_void);
+                    (U { addr }.drop)(ptr as *mut c_void);
                 }
                 P::dealloc(ptr, self.bytes.capacity())
             }
@@ -162,7 +173,7 @@ impl<T, P: MemPool> ByteArray<T, P> {
             bytes: Default::default(),
             destructor_address: 0,
             logged: 0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -172,7 +183,7 @@ impl<T, P: MemPool> ByteArray<T, P> {
             bytes: unsafe { Slice::from_raw_parts(obj.ptr as *const u8, obj.len) },
             destructor_address: obj.destructor_address,
             logged: 0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -226,7 +237,8 @@ impl<T, P: MemPool> ByteArray<T, P> {
             std::ptr::copy_nonoverlapping(
                 self.bytes.as_ptr(),
                 loc as *mut _ as *mut u8,
-                self.bytes.capacity());
+                self.bytes.capacity(),
+            );
         }
     }
 
@@ -277,7 +289,7 @@ impl<T, P: MemPool> Gen<T, P> {
             ptr: std::ptr::null(),
             len: 0,
             destructor_address: 0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -299,7 +311,7 @@ impl<T, P: MemPool> Gen<T, P> {
             ptr: obj as *const T as *const c_void,
             len: size_of::<T>(),
             destructor_address: 0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -309,7 +321,7 @@ impl<T, P: MemPool> Gen<T, P> {
             ptr: obj.bytes.as_ptr() as *const c_void,
             len: obj.len(),
             destructor_address: obj.destructor_address,
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         std::mem::forget(obj);
         res

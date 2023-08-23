@@ -1,16 +1,16 @@
 //! Persistent unicode string slices
 
-use crate::RootObj;
-use crate::convert::PFrom;
 use crate::alloc::MemPool;
 use crate::clone::PClone;
+use crate::convert::PFrom;
 use crate::stm::*;
 use crate::vec::Vec;
-use std::string::FromUtf8Error;
+use crate::RootObj;
 use std::borrow::{Cow, ToOwned};
 use std::char::decode_utf16;
 use std::ops::{self, Index, IndexMut, RangeBounds};
 use std::str::pattern::Pattern;
+use std::string::FromUtf8Error;
 use std::string::String as StdString;
 use std::string::ToString as StdToString;
 use std::vec::Vec as StdVec;
@@ -1181,14 +1181,15 @@ impl<A: MemPool> String<A> {
         let mut s = self.as_str().to_string();
         s.replace_range(range, replace_with);
         if s.len() > self.len() {
-            self.vec.reserve(s.len()-self.len(), j);
+            self.vec.reserve(s.len() - self.len(), j);
         }
         let slice: &mut [u8] = self.vec.to_slice_mut();
         unsafe {
             ptr::copy_nonoverlapping(
                 s.as_bytes() as *const _ as *const u8,
                 slice as *mut _ as *mut u8,
-                s.len());
+                s.len(),
+            );
             self.vec.set_len(s.len());
         }
     }
@@ -1389,7 +1390,9 @@ impl<A: MemPool> Default for String<A> {
     /// Creates an empty `String`.
     #[inline]
     fn default() -> String<A> {
-        String { vec: Vec::default() }
+        String {
+            vec: Vec::default(),
+        }
     }
 }
 

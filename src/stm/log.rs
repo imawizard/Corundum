@@ -1,7 +1,7 @@
-use crate::ptr::Slice;
 use crate::alloc::MemPool;
 use crate::ll::*;
 use crate::ptr::Ptr;
+use crate::ptr::Slice;
 use crate::stm::*;
 use crate::*;
 use std::clone::Clone;
@@ -56,13 +56,13 @@ fn offset_to_str(off: u64) -> String {
 impl Debug for LogEnum {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::result::Result<(), fmt::Error> {
         match *self {
-            DataLog(off, _, _)       => write!(f, "DataLog         ({})", offset_to_str(off)),
-            DropOnAbort(off, _)      => write!(f, "DropOnAbort     ({})", offset_to_str(off)),
-            DropOnCommit(off, _)     => write!(f, "DropOnCommit    ({})", offset_to_str(off)),
-            DropOnFailure(off, _)    => write!(f, "DropOnFailure   ({})", offset_to_str(off)),
+            DataLog(off, _, _) => write!(f, "DataLog         ({})", offset_to_str(off)),
+            DropOnAbort(off, _) => write!(f, "DropOnAbort     ({})", offset_to_str(off)),
+            DropOnCommit(off, _) => write!(f, "DropOnCommit    ({})", offset_to_str(off)),
+            DropOnFailure(off, _) => write!(f, "DropOnFailure   ({})", offset_to_str(off)),
             RecountOnFailure(off, _) => write!(f, "RecountOnFailure({})", offset_to_str(off)),
-            UnlockOnCommit(off)      => write!(f, "UnlockOnCommit  ({})", offset_to_str(off)),
-            None                     => write!(f, "None"),
+            UnlockOnCommit(off) => write!(f, "UnlockOnCommit  ({})", offset_to_str(off)),
+            None => write!(f, "None"),
         }
     }
 }
@@ -99,7 +99,6 @@ impl<A: MemPool> Clone for Notifier<A> {
 }
 
 impl<A: MemPool> Notifier<A> {
-
     #[inline]
     /// Update the owner's flag
     pub fn update(&mut self, v: u8) {
@@ -163,11 +162,15 @@ impl<A: MemPool> Clone for Log<A> {
 }
 
 impl<A: MemPool> PartialEq<LogEnum> for Log<A> {
-    fn eq(&self, other: &LogEnum) -> bool { self.0 == *other }
+    fn eq(&self, other: &LogEnum) -> bool {
+        self.0 == *other
+    }
 }
 
 impl<A: MemPool> PartialEq for Log<A> {
-    fn eq(&self, other: &Self) -> bool { self.0 == other.0 }
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
 }
 
 impl<A: MemPool> Debug for Log<A> {
@@ -254,21 +257,27 @@ impl<A: MemPool> Log<A> {
     pub fn set(&mut self, off: u64, len: usize, zone: usize) {
         debug_assert_ne!(len, 0);
 
-        log!(A, Yellow, "CHNGE LOG", "TO:          ({:>6}:{:<6}) = {:<6} {:?}",
-            offset_to_str(off), offset_to_str((off as usize + (len - 1)) as u64),
-            len, self.0
+        log!(
+            A,
+            Yellow,
+            "CHNGE LOG",
+            "TO:          ({:>6}:{:<6}) = {:<6} {:?}",
+            offset_to_str(off),
+            offset_to_str((off as usize + (len - 1)) as u64),
+            len,
+            self.0
         );
 
         match &self.0 {
-            DropOnAbort(offset, length) |
-            DropOnFailure(offset, length) |
-            DropOnCommit(offset, length) => unsafe {
+            DropOnAbort(offset, length)
+            | DropOnFailure(offset, length)
+            | DropOnCommit(offset, length) => unsafe {
                 A::log64(A::off_unchecked(offset), off, zone);
                 A::log64(A::off_unchecked(length), len as u64, zone);
             },
             RecountOnFailure(offset, _) => unsafe {
                 A::log64(A::off_unchecked(offset), off, zone);
-            }
+            },
             _ => {}
         }
     }
@@ -282,8 +291,9 @@ impl<A: MemPool> Log<A> {
             DropOnFailure(_, _) => "DropOnFailure",
             RecountOnFailure(_, _) => "RecountOnFailure",
             UnlockOnCommit(_) => "UnlockOnCommit",
-            None => "None"
-        }.to_string()
+            None => "None",
+        }
+        .to_string()
     }
 
     /// Returns the inner value
@@ -300,12 +310,15 @@ fn dump_data<A: MemPool>(tag: &str, off: u64, len: usize) {
     use term_painter::ToStyle;
 
     if *crate::utils::VERBOSE {
-        print!("{:<8} {}", A::name().to_owned() + ":",
-            BrightBlue.paint(format!("{:>10}  ", tag)));
+        print!(
+            "{:<8} {}",
+            A::name().to_owned() + ":",
+            BrightBlue.paint(format!("{:>10}  ", tag))
+        );
         for i in 0..len {
             let d = unsafe { A::get_unchecked::<u8>(off + i as u64) };
             print!("{}", BrightBlue.paint(format!("{:02x} ", *d)));
-            if i % 16 == 15 && i+1 < len {
+            if i % 16 == 15 && i + 1 < len {
                 println!();
                 print!("{:>21}", " ");
             }
@@ -350,11 +363,18 @@ impl<A: MemPool> Log<A> {
         } else {
             let pointer = unsafe { Ptr::<T, A>::new_unchecked(x) };
 
-            log!(A, Yellow, "LOG", "FOR:         ({:>6}:{:<6}) = {:<6} DataLog  TYPE: {}",
-                offset_to_str(pointer.off()), offset_to_str((pointer.off() as usize + (len - 1)) as u64),
-                len, std::any::type_name_of_val(x)
+            log!(
+                A,
+                Yellow,
+                "LOG",
+                "FOR:         ({:>6}:{:<6}) = {:<6} DataLog  TYPE: {}",
+                offset_to_str(pointer.off()),
+                offset_to_str((pointer.off() as usize + (len - 1)) as u64),
+                len,
+                std::any::type_name_of_val(x)
             );
-            #[cfg(feature = "verbose")] {
+            #[cfg(feature = "verbose")]
+            {
                 dump_data::<A>("DATA", pointer.off(), len);
             }
 
@@ -370,7 +390,7 @@ impl<A: MemPool> Log<A> {
 
             //     Self::create_impl(log.off(), pointer.off(), len, journal, notifier)
             // } else {
-            crate::ll::persist_obj_with_log::<_,A>(log.as_ref(), false);
+            crate::ll::persist_obj_with_log::<_, A>(log.as_ref(), false);
             Self::create_impl(pointer.off(), log.off(), len, journal, notifier)
             // }
         }
@@ -393,17 +413,24 @@ impl<A: MemPool> Log<A> {
         } else {
             let slice = unsafe { Slice::<T, A>::new(x) };
 
-            log!(A, Yellow, "LOG", "FOR:         ({:>6}:{:<6}) = {:<6} DataLog  TYPE: {}",
-                offset_to_str(slice.off()), offset_to_str((slice.off() as usize + (len - 1)) as u64),
-                len, std::any::type_name_of_val(x)
+            log!(
+                A,
+                Yellow,
+                "LOG",
+                "FOR:         ({:>6}:{:<6}) = {:<6} DataLog  TYPE: {}",
+                offset_to_str(slice.off()),
+                offset_to_str((slice.off() as usize + (len - 1)) as u64),
+                len,
+                std::any::type_name_of_val(x)
             );
-            #[cfg(feature = "verbose")] {
+            #[cfg(feature = "verbose")]
+            {
                 dump_data::<A>("DATA", slice.off(), len);
             }
 
             let log = unsafe { slice.dup() };
 
-            crate::ll::persist_obj_with_log::<_,A>(log.as_ref(), false);
+            crate::ll::persist_obj_with_log::<_, A>(log.as_ref(), false);
             Self::create_impl(slice.off(), log.off(), len, journal, notifier)
             // }
         }
@@ -431,7 +458,11 @@ impl<A: MemPool> Log<A> {
         #[cfg(feature = "stat_perf")]
         let _perf = crate::stat::Measure::<A>::DropLog(std::time::Instant::now());
 
-        log!(A, Yellow, "NEW LOG", "FOR:         ({:>6}:{:<6}) = {:<6} DropOnCommit",
+        log!(
+            A,
+            Yellow,
+            "NEW LOG",
+            "FOR:         ({:>6}:{:<6}) = {:<6} DropOnCommit",
             offset_to_str(offset),
             offset_to_str((offset as usize + (len - 1)) as u64),
             len
@@ -449,7 +480,11 @@ impl<A: MemPool> Log<A> {
         #[cfg(feature = "stat_perf")]
         let _perf = crate::stat::Measure::<A>::DropLog(std::time::Instant::now());
 
-        log!(A, Yellow, "NEW LOG", "FOR:         ({:>6}:{:<6}) = {:<6} DropOnAbort",
+        log!(
+            A,
+            Yellow,
+            "NEW LOG",
+            "FOR:         ({:>6}:{:<6}) = {:<6} DropOnAbort",
             offset_to_str(offset),
             offset_to_str((offset as usize + (len - 1)) as u64),
             len
@@ -468,7 +503,11 @@ impl<A: MemPool> Log<A> {
         #[cfg(feature = "stat_perf")]
         let _perf = crate::stat::Measure::<A>::DropLog(std::time::Instant::now());
 
-        log!(A, Yellow, "NEW LOG", "FOR:         ({:>6}:{:<6}) = {:<6} DropOnFailure",
+        log!(
+            A,
+            Yellow,
+            "NEW LOG",
+            "FOR:         ({:>6}:{:<6}) = {:<6} DropOnFailure",
             offset_to_str(offset),
             offset_to_str((offset as usize + (len - 1)) as u64),
             len
@@ -481,23 +520,32 @@ impl<A: MemPool> Log<A> {
     /// for locking data in a thread
     #[inline]
     #[track_caller]
-    pub unsafe fn unlock_on_commit(
-        virt_addr: u64,
-        journal: &Journal<A>,
-    ) {
+    pub unsafe fn unlock_on_commit(virt_addr: u64, journal: &Journal<A>) {
         #[cfg(feature = "stat_perf")]
         let _perf = crate::stat::Measure::<A>::MutexLog(std::time::Instant::now());
 
-        log!(A, Yellow, "NEW LOG", "FOR:         v@{:<18} UnlockOnCommit", virt_addr);
+        log!(
+            A,
+            Yellow,
+            "NEW LOG",
+            "FOR:         v@{:<18} UnlockOnCommit",
+            virt_addr
+        );
 
-        #[cfg(any(feature = "no_pthread", windows))] {
+        #[cfg(any(feature = "no_pthread", windows))]
+        {
             let b = &mut *(virt_addr as *mut (bool, u64));
-            if b.0 { return; }
+            if b.0 {
+                return;
+            }
         }
-        #[cfg(not(any(feature = "no_pthread", windows)))] {
-            let b = &mut *(virt_addr as *mut (bool, libc::pthread_mutex_t,
-                libc::pthread_mutexattr_t));
-            if b.0 { return; }
+        #[cfg(not(any(feature = "no_pthread", windows)))]
+        {
+            let b =
+                &mut *(virt_addr as *mut (bool, libc::pthread_mutex_t, libc::pthread_mutexattr_t));
+            if b.0 {
+                return;
+            }
         };
 
         Self::write_on_journal(UnlockOnCommit(virt_addr), journal, Notifier::None);
@@ -507,8 +555,16 @@ impl<A: MemPool> Log<A> {
     /// log and writes it on `journal`
     #[inline]
     #[track_caller]
-    pub unsafe fn recount_on_failure(offset: u64, inc: bool, journal: &Journal<A>) -> Ptr<Log<A>, A> {
-        log!(A, Yellow, "NEW LOG", "FOR:         ({:>6}:{:<6}) = {:<6} RecountOnFailure",
+    pub unsafe fn recount_on_failure(
+        offset: u64,
+        inc: bool,
+        journal: &Journal<A>,
+    ) -> Ptr<Log<A>, A> {
+        log!(
+            A,
+            Yellow,
+            "NEW LOG",
+            "FOR:         ({:>6}:{:<6}) = {:<6} RecountOnFailure",
             offset_to_str(offset),
             offset_to_str(offset),
             8
@@ -520,10 +576,18 @@ impl<A: MemPool> Log<A> {
         debug_assert_ne!(*len, 0);
 
         if *log != u64::MAX && *src != u64::MAX {
-            log!(A, Magenta, "ROLLBACK", "FOR:         ({:>6x}:{:<6x}) = {:<6} DataLog({})",
-                *src, *src as usize + (len - 1), len, log
+            log!(
+                A,
+                Magenta,
+                "ROLLBACK",
+                "FOR:         ({:>6x}:{:<6x}) = {:<6} DataLog({})",
+                *src,
+                *src as usize + (len - 1),
+                len,
+                log
             );
-            #[cfg(feature = "verbose")] {
+            #[cfg(feature = "verbose")]
+            {
                 dump_data::<A>(" ORG", *src, *len);
                 dump_data::<A>(" LOG", *log, *len);
             }
@@ -531,7 +595,7 @@ impl<A: MemPool> Log<A> {
                 let src = A::get_mut_unchecked::<u8>(*src);
                 let log = A::get_mut_unchecked::<u8>(*log);
                 ptr::copy_nonoverlapping(log, src, *len);
-                persist_with_log::<_,A>(log, *len, false);
+                persist_with_log::<_, A>(log, *len, false);
             }
 
             #[cfg(feature = "check_allocator_cyclic_links")]
@@ -556,9 +620,9 @@ impl<A: MemPool> Log<A> {
         }
     }
 
-    pub(crate) unsafe fn rollback_drop_on_abort(&mut self,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    pub(crate) unsafe fn rollback_drop_on_abort(
+        &mut self,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         #[cfg(feature = "stat_perf")]
         let _perf = crate::stat::Measure::<A>::RollbackLog(std::time::Instant::now());
@@ -566,7 +630,8 @@ impl<A: MemPool> Log<A> {
         match &mut self.0 {
             DropOnAbort(src, len) => {
                 if *src != u64::MAX {
-                    #[cfg(feature = "check_double_free")] {
+                    #[cfg(feature = "check_double_free")]
+                    {
                         if check_double_free.contains(&*src) {
                             return;
                         }
@@ -585,15 +650,24 @@ impl<A: MemPool> Log<A> {
     }
 
     /// Recovers from the crash or power failure
-    pub(crate) unsafe fn recover(&mut self, rollback: bool,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    pub(crate) unsafe fn recover(
+        &mut self,
+        rollback: bool,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         match &mut self.0 {
             DataLog(src, log, layout) => {
                 if rollback {
-                    debug_assert!(A::allocated(*src, 1), "Access Violation at address 0x{:x}", *src);
-                    debug_assert!(A::allocated(*log, 1), "Access Violation at address 0x{:x}", *log);
+                    debug_assert!(
+                        A::allocated(*src, 1),
+                        "Access Violation at address 0x{:x}",
+                        *src
+                    );
+                    debug_assert!(
+                        A::allocated(*log, 1),
+                        "Access Violation at address 0x{:x}",
+                        *log
+                    );
                     Self::rollback_datalog(src, log, layout);
                     self.notify(0);
                     self.1 = Notifier::None;
@@ -605,7 +679,8 @@ impl<A: MemPool> Log<A> {
             DropOnFailure(src, len) => {
                 if rollback {
                     if *src != u64::MAX {
-                        #[cfg(feature = "check_double_free")] {
+                        #[cfg(feature = "check_double_free")]
+                        {
                             if check_double_free.contains(&*src) {
                                 return;
                             }
@@ -656,11 +731,15 @@ impl<A: MemPool> Log<A> {
 
         match &mut self.0 {
             DataLog(_src, _log, _len) => {
-                debug_assert!(A::allocated(*_src, 1), "Access Violation at address 0x{:x}", *_src);
+                debug_assert!(
+                    A::allocated(*_src, 1),
+                    "Access Violation at address 0x{:x}",
+                    *_src
+                );
 
                 #[cfg(all(not(feature = "no_flush_updates"), not(feature = "replace_with_log")))]
                 unsafe {
-                    persist_with_log::<u8,A>(A::get_mut_unchecked(*_src), *_len, false);
+                    persist_with_log::<u8, A>(A::get_mut_unchecked(*_src), *_len, false);
                 }
             }
             _ => {}
@@ -668,9 +747,9 @@ impl<A: MemPool> Log<A> {
     }
 
     /// Commits changes
-    pub(crate) fn commit_dealloc(&mut self,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    pub(crate) fn commit_dealloc(
+        &mut self,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         #[cfg(feature = "stat_perf")]
         let _perf = crate::stat::Measure::<A>::CommitLog(std::time::Instant::now());
@@ -679,7 +758,8 @@ impl<A: MemPool> Log<A> {
             DropOnCommit(src, len) => {
                 if *src != u64::MAX {
                     unsafe {
-                        #[cfg(feature = "check_double_free")] {
+                        #[cfg(feature = "check_double_free")]
+                        {
                             if check_double_free.contains(&*src) {
                                 return;
                             }
@@ -705,9 +785,9 @@ impl<A: MemPool> Log<A> {
     /// * If it is a [`UnlockOnCommit`](./enum.LogEnum.html#variant.UnlockOnCommit),
     /// it unlocks the mutex.
     ///
-    pub unsafe fn clear(&mut self,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    pub unsafe fn clear(
+        &mut self,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         #[cfg(feature = "stat_perf")]
         let _perf = crate::stat::Measure::<A>::ClearLog(std::time::Instant::now());
@@ -715,16 +795,28 @@ impl<A: MemPool> Log<A> {
         match &mut self.0 {
             DataLog(_src, log, len) => {
                 if *log != u64::MAX {
-                    #[cfg(feature = "check_double_free")] {
+                    #[cfg(feature = "check_double_free")]
+                    {
                         if check_double_free.contains(&*log) {
                             return;
                         }
                         check_double_free.insert(*log);
                     }
-                    log!(A, Magenta, "DEL LOG", "FOR:         ({:>6x}:{:<6x}) = {:<6} DataLog({})",
-                        *_src, *_src as usize + (*len - 1), *len, log
+                    log!(
+                        A,
+                        Magenta,
+                        "DEL LOG",
+                        "FOR:         ({:>6x}:{:<6x}) = {:<6} DataLog({})",
+                        *_src,
+                        *_src as usize + (*len - 1),
+                        *len,
+                        log
                     );
-                    debug_assert!(A::allocated(*log, *len), "Access Violation at address 0x{:x}", *log);
+                    debug_assert!(
+                        A::allocated(*log, *len),
+                        "Access Violation at address 0x{:x}",
+                        *log
+                    );
 
                     #[cfg(feature = "check_allocator_cyclic_links")]
                     debug_assert!(A::verify());
@@ -740,8 +832,13 @@ impl<A: MemPool> Log<A> {
             UnlockOnCommit(src) => {
                 if *src != u64::MAX {
                     log!(A, Magenta, "UNLOCK", "FOR:          v@{}", *src);
-                    #[cfg(not(any(feature = "no_pthread", windows)))] {
-                        let b = &mut *(*src as *mut (bool, libc::pthread_mutex_t, libc::pthread_mutexattr_t));
+                    #[cfg(not(any(feature = "no_pthread", windows)))]
+                    {
+                        let b = &mut *(*src as *mut (
+                            bool,
+                            libc::pthread_mutex_t,
+                            libc::pthread_mutexattr_t,
+                        ));
                         b.0 = false;
                         let lock = &mut b.1;
                         let attr = &mut b.2;
@@ -750,7 +847,8 @@ impl<A: MemPool> Log<A> {
                             crate::sync::init_lock(lock, attr);
                         }
                     }
-                    #[cfg(any(feature = "no_pthread", windows))] {
+                    #[cfg(any(feature = "no_pthread", windows))]
+                    {
                         let b = &mut *(*src as *mut (bool, u64));
                         b.0 = false;
                         let lock = &mut b.1;
@@ -782,7 +880,11 @@ pub trait Logger<A: MemPool> {
 }
 
 impl<T: PSafe + ?Sized, A: MemPool> Logger<A> for T {
-    default unsafe fn create_log(&self, journal: &Journal<A>, notifier: Notifier<A>) -> Ptr<Log<A>, A> {
+    default unsafe fn create_log(
+        &self,
+        journal: &Journal<A>,
+        notifier: Notifier<A>,
+    ) -> Ptr<Log<A>, A> {
         Log::create(self, journal, notifier)
     }
 }

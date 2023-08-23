@@ -7,9 +7,9 @@ mod map;
 mod skiplist;
 
 use crate::map::*;
-use hashmap::*;
 use corundum::default::*;
 use corundum::open_flags::*;
+use hashmap::*;
 use skiplist::*;
 use std::env;
 use std::io::prelude::*;
@@ -77,7 +77,9 @@ fn perform<T: 'static + Map<u64, u64> + RootObj<P> + PSafe>(path: &str) {
     print!("$ ");
     stdout().flush().unwrap();
     while let Ok(_) = stdin().read_line(&mut buf) {
-        if buf.is_empty() { break }
+        if buf.is_empty() {
+            break;
+        }
         match buf.remove(0) as char {
             'i' => str_insert(&*map, &mut buf),
             'c' => str_check(&*map, &mut buf),

@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{quote, quote_spanned, format_ident};
+use quote::{format_ident, quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::*;
 
@@ -15,7 +15,6 @@ pub fn derive_pclone(input: TokenStream) -> TokenStream {
 
     let mut expanded = vec![];
     for p in &pools {
-
         // Add a bound `T: PClone` to every type parameter T.
         let generics = add_trait_bounds(input.generics.clone(), &pools, &p);
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
@@ -42,7 +41,11 @@ pub fn derive_pclone(input: TokenStream) -> TokenStream {
 }
 
 // Add a bound `T: PClone` to every type parameter T.
-fn add_trait_bounds(mut generics: Generics, pool: &Vec<TokenStream2>, p: &TokenStream2) -> Generics {
+fn add_trait_bounds(
+    mut generics: Generics,
+    pool: &Vec<TokenStream2>,
+    p: &TokenStream2,
+) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
             let ident = type_param.ident.clone();
@@ -112,16 +115,16 @@ fn pclone_all_fields(ident: &Ident, data: &Data) -> TokenStream2 {
                             #ident::#variant(#(#recurse,)*) =>
                                 #ident::#variant(#(corundum::PClone::pclone(&#clones, j),)*)
                         }
-                    },
+                    }
                     Fields::Named(ref fields) => {
-                        let recurse = fields.named.iter().enumerate().map(|(i,f)| {
+                        let recurse = fields.named.iter().enumerate().map(|(i, f)| {
                             let name = &f.ident;
                             let varname = format_ident!("__self_{}", i);
                             quote_spanned! {f.span()=>
                                 #name: #varname
                             }
                         });
-                        let clones = fields.named.iter().enumerate().map(|(i,f)| {
+                        let clones = fields.named.iter().enumerate().map(|(i, f)| {
                             let name = &f.ident;
                             let varname = format_ident!("__self_{}", i);
                             quote_spanned! {f.span()=>

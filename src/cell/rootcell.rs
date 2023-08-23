@@ -1,11 +1,11 @@
-use std::panic::RefUnwindSafe;
-use std::panic::UnwindSafe;
-use crate::alloc::{MemPool,PoolGuard};
-use crate::*;
+use crate::alloc::{MemPool, PoolGuard};
 use crate::stm::Journal;
+use crate::*;
 use std::cmp::*;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
+use std::panic::RefUnwindSafe;
+use std::panic::UnwindSafe;
 use std::sync::Arc;
 
 /// Root object container

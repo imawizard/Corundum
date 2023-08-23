@@ -4,10 +4,10 @@
 //! `"use_pspd"` to the feature list.
 //!
 
-use crate::cell::{LazyCell,VCell};
 use crate::alloc::MemPool;
-use crate::{utils, ll};
-use std::{mem, ptr, alloc::*};
+use crate::cell::{LazyCell, VCell};
+use crate::{ll, utils};
+use std::{alloc::*, mem, ptr};
 
 static SCRATCHPAD_SIZE: LazyCell<usize> = LazyCell::new(|| {
     std::env::var("SPD_SIZE")
@@ -28,7 +28,7 @@ pub struct Scratchpad<A: MemPool> {
     base: VCell<RawPtr, A>,
     cap: usize,
     len: usize,
-    off: u64
+    off: u64,
 }
 
 impl<A: MemPool> Scratchpad<A> {
@@ -40,7 +40,7 @@ impl<A: MemPool> Scratchpad<A> {
             })),
             cap: size,
             len: 0,
-            off: u64::MAX
+            off: u64::MAX,
         }
     }
 
@@ -54,9 +54,11 @@ impl<A: MemPool> Scratchpad<A> {
         let len = 8 + 8 + size;
         if self.len + len > self.cap {
             let new_cap = self.cap + *SCRATCHPAD_SIZE;
-            self.base = VCell::new(RawPtr(realloc(self.base.0,
+            self.base = VCell::new(RawPtr(realloc(
+                self.base.0,
                 Layout::from_size_align_unchecked(self.cap, 2),
-                new_cap)));
+                new_cap,
+            )));
             self.cap = new_cap;
         }
         // First 8 bytes is org_off

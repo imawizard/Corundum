@@ -1,27 +1,26 @@
-use std::sync::Arc;
+use crate::cell::LazyCell;
 use crate::cell::RootCell;
-use crate::utils::*;
 use crate::result::Result;
 use crate::stm::Chaperon;
+use crate::utils::*;
 use crate::*;
 use std::alloc::{alloc, dealloc, Layout};
 use std::collections::HashMap;
 use std::ops::Range;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread::ThreadId;
-use crate::cell::LazyCell;
 
 pub use crate::alloc::*;
 
 /// A pass-through allocator for volatile memory
-#[derive(Clone,Copy,Default)]
+#[derive(Clone, Copy, Default)]
 pub struct Heap {}
 
 static mut JOURNALS: Option<HashMap<ThreadId, (u64, i32)>> = None;
 static mut CHAPERONS: Option<HashMap<ThreadId, Chaperon>> = None;
 static mut MUTEX: Option<Mutex<bool>> = None;
-static mut LOGS: LazyCell<Mutex<Ring<(u64, u64), 8>>> =
-    LazyCell::new(|| Mutex::new(Ring::new()));
+static mut LOGS: LazyCell<Mutex<Ring<(u64, u64), 8>>> = LazyCell::new(|| Mutex::new(Ring::new()));
 
 unsafe impl MemPool for Heap {}
 
@@ -39,8 +38,17 @@ unsafe impl MemPoolTraits for Heap {
         Self::discard(0);
         let x = alloc(Layout::from_size_align_unchecked(size, 1));
         let off = x as u64;
-        log!(Self, Green, "", "PRE: {:<6}  ({:>6x}:{:<6x}) = {:<6} POST = {:<6}",
-            0, off, off + size as u64 - 1, size, 0);
+        log!(
+            Self,
+            Green,
+            "",
+            "PRE: {:<6}  ({:>6x}:{:<6x}) = {:<6} POST = {:<6}",
+            0,
+            off,
+            off + size as u64 - 1,
+            size,
+            0
+        );
         (x, off, size, 0)
     }
 
@@ -48,8 +56,17 @@ unsafe impl MemPoolTraits for Heap {
         Self::discard(0);
         let _start = ptr as u64;
         let _end = _start + size as u64;
-        log!(Self, Red, "DEALLOC", "PRE: {:<6}  ({:>6x}:{:<6x}) = {:<6} POST = {:<6}",
-            0, _start, _end, _end - _start + 1, 0);
+        log!(
+            Self,
+            Red,
+            "DEALLOC",
+            "PRE: {:<6}  ({:>6x}:{:<6x}) = {:<6} POST = {:<6}",
+            0,
+            _start,
+            _end,
+            _end - _start + 1,
+            0
+        );
         dealloc(ptr, Layout::from_size_align_unchecked(size, 1));
         0
     }
@@ -65,7 +82,7 @@ unsafe impl MemPoolTraits for Heap {
     unsafe fn log64(obj: u64, val: u64, _: usize) {
         let mut logs = match LOGS.lock() {
             Ok(g) => g,
-            Err(p) => p.into_inner()
+            Err(p) => p.into_inner(),
         };
         logs.push((obj, val))
     }
@@ -75,7 +92,7 @@ unsafe impl MemPoolTraits for Heap {
     unsafe fn perform(_: usize) {
         let mut logs = match LOGS.lock() {
             Ok(g) => g,
-            Err(p) => p.into_inner()
+            Err(p) => p.into_inner(),
         };
         logs.foreach(|(off, data)| {
             *utils::read_addr(off) = data;
@@ -86,7 +103,7 @@ unsafe impl MemPoolTraits for Heap {
     unsafe fn discard(_: usize) {
         let mut logs = match LOGS.lock() {
             Ok(g) => g,
-            Err(p) => p.into_inner()
+            Err(p) => p.into_inner(),
         };
         logs.clear()
     }
@@ -140,7 +157,7 @@ unsafe impl MemPoolTraits for Heap {
         Self::free_nolog(journal);
     }
 
-    unsafe fn journals<T, F: Fn(&mut HashMap<ThreadId, (u64, i32)>)->T>(f: F)->T{
+    unsafe fn journals<T, F: Fn(&mut HashMap<ThreadId, (u64, i32)>) -> T>(f: F) -> T {
         if JOURNALS.is_none() {
             JOURNALS = Some(HashMap::new());
         }

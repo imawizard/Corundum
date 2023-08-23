@@ -3,13 +3,13 @@
 //!
 //! [btree example]: https://github.com/pmem/pmdk/blob/master/src/examples/libpmemobj/tree_map/btree_map.c
 
-use std::panic::UnwindSafe;
+use crate::map::*;
 use corundum::default::*;
 use std::fmt::Debug;
-use crate::map::*;
+use std::panic::UnwindSafe;
 
 type PmemObj<T> = Prc<PRefCell<T>>;
-type Ptr<T> = corundum::ptr::Ptr<T,P>;
+type Ptr<T> = corundum::ptr::Ptr<T, P>;
 
 const BTREE_ORDER: usize = 8;
 const BTREE_MIN: usize = (BTREE_ORDER / 2) - 1;
@@ -47,7 +47,7 @@ impl<V: PSafe + Default + Copy> Node<V> {
         item: NodeItem<V>,
         left: PmemObj<Node<V>>,
         right: PmemObj<Node<V>>,
-        j: &Journal
+        j: &Journal,
     ) -> PmemObj<Node<V>> {
         let p = *p;
         if self.items[p].key != 0 {
@@ -122,7 +122,7 @@ impl<V: PSafe + Default + Copy> Node<V> {
 
     #[inline]
     unsafe fn lookup<'a>(&self, key: u64) -> bool {
-        for i in 0 .. self.n + 1 {
+        for i in 0..self.n + 1 {
             if i != self.n && self.items[i].key == key {
                 return true;
             } else if i == self.n || self.items[i].key > key {
@@ -148,7 +148,7 @@ impl<V: PSafe + Default + Copy> Node<V> {
         &mut self,
         mut node: PNonNull<Node<V>>,
         mut parent: PNonNull<Node<V>>,
-        p: usize
+        p: usize,
     ) {
         let n = node.n;
         node.insert_item(n, parent.items[p]);
@@ -168,7 +168,7 @@ impl<V: PSafe + Default + Copy> Node<V> {
         &mut self,
         mut node: PNonNull<Node<V>>,
         mut parent: PNonNull<Node<V>>,
-        p: usize
+        p: usize,
     ) {
         node.insert_item(0, parent.items[p - 1]);
 
@@ -193,7 +193,7 @@ where
         p: &mut usize,
         j: &Journal,
     ) -> PNonNull<Node<V>> {
-        let n = unsafe {nn.as_non_null_mut(j)};
+        let n = unsafe { nn.as_non_null_mut(j) };
         for i in 0..BTREE_ORDER - 1 {
             *p = i;
 
@@ -226,7 +226,7 @@ where
         p: &mut usize,
         j: &Journal,
     ) -> PNonNull<Node<V>> {
-        let mut n = unsafe {nn.as_non_null_mut(j)};
+        let mut n = unsafe { nn.as_non_null_mut(j) };
         if n.n == BTREE_ORDER - 1 {
             /* node is fullerform a split */
             let mut m = NodeItem::default();
@@ -248,11 +248,7 @@ where
                 items[0] = m;
                 slots[0] = Some(Prc::new(PRefCell::new(n.pclone(j)), j));
                 slots[1] = Some(Prc::new(PRefCell::new(right), j));
-                let up = Node {
-                        n: 1,
-                        items,
-                        slots,
-                    };
+                let up = Node { n: 1, items, slots };
                 let mut root = unsafe { self.root.as_non_null_mut(j) };
                 *root = up;
                 self.find_dest_node_in(&self.root, key, p, j)
@@ -319,14 +315,15 @@ where
         j: &Journal,
     ) -> Option<V> {
         let mut ret = None;
-        for i in 0 .. node.n + 1 {
+        for i in 0..node.n + 1 {
             if i != node.n && node.items[i].key == key {
                 ret = Some(node.items[i].val);
                 self.remove_from(node, i, j);
                 break;
             } else if i == node.n || node.items[i].key > key {
                 if let Some(slot) = &node.slots[i] {
-                    ret = self.remove_item(unsafe { slot.as_non_null_mut(j) }, Some(node), key, i, j);
+                    ret =
+                        self.remove_item(unsafe { slot.as_non_null_mut(j) }, Some(node), key, i, j);
                     break;
                 }
             }
@@ -341,13 +338,7 @@ where
         ret
     }
 
-    fn rebalance(
-        &self,
-        node: PNonNull<Node<V>>,
-        parent: PNonNull<Node<V>>,
-        p: usize,
-        j: &Journal,
-    ) {
+    fn rebalance(&self, node: PNonNull<Node<V>>, parent: PNonNull<Node<V>>, p: usize, j: &Journal) {
         let mut rsb = if p >= parent.n {
             None
         } else {
@@ -381,7 +372,7 @@ where
         if let Some(rsb) = rsb.as_ref() {
             self.merge(*rsb, node, parent, p, j)
         } else if let Some(lsb) = lsb.as_ref() {
-            self.merge(node, *lsb, parent , p - 1, j)
+            self.merge(node, *lsb, parent, p - 1, j)
         }
     }
 
@@ -423,7 +414,7 @@ impl<V: PSafe + Default + PClone<P> + Debug> Map<u64, V> for BTree<V>
 where
     NodeItem<V>: Clone,
     V: std::panic::RefUnwindSafe + TxInSafe + UnwindSafe + Copy,
-    Self: 'static
+    Self: 'static,
 {
     fn clear(&self) {
         P::transaction(|j| {
@@ -449,7 +440,7 @@ where
 
     fn remove(&self, key: u64) {
         P::transaction(|j| {
-            let root = unsafe {self.root.as_non_null_mut(j)};
+            let root = unsafe { self.root.as_non_null_mut(j) };
             self.remove_item(root, None, key, 0, j);
         })
         .unwrap();

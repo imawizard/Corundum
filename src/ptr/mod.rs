@@ -1,9 +1,9 @@
 //! Manually manage memory through raw pointers
 
-mod slice;
-mod ptr;
 mod non_null;
+mod ptr;
+mod slice;
 
-pub use slice::*;
-pub use ptr::*;
 pub use non_null::*;
+pub use ptr::*;
+pub use slice::*;

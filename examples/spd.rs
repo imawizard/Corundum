@@ -1,5 +1,5 @@
-use std::time::Instant;
 use corundum::open_flags::*;
+use std::time::Instant;
 
 fn main() {
     use corundum::default::*;
@@ -8,7 +8,7 @@ fn main() {
     type P = Allocator;
 
     struct Root {
-        list: PVec<PCell<i32>>
+        list: PVec<PCell<i32>>,
     }
 
     impl RootObj<P> for Root {
@@ -37,9 +37,9 @@ fn main() {
             for i in 0..*c {
                 root.list[i].set(root.list[(i + 1) % *c].get(), j);
             }
-        }).unwrap();
+        })
+        .unwrap();
         let t = now.elapsed().as_micros();
         println!("Transaction Size {:4}: {:>8} us", c, t);
     }
-
 }

@@ -19,9 +19,14 @@ use std::arch::x86_64::{_mm_clflush, _mm_mfence, _mm_sfence};
 #[inline(always)]
 pub fn persist_with_log<T: ?Sized, A: MemPool>(ptr: *const T, len: usize, fence: bool) {
     unsafe {
-        crate::log!(A, BrightCyan, "PERSIST", "             ({:>6x}:{:<6x}) = {:<6}",
+        crate::log!(
+            A,
+            BrightCyan,
+            "PERSIST",
+            "             ({:>6x}:{:<6x}) = {:<6}",
             A::off_unchecked(ptr),
-            A::off_unchecked(ptr) + (len as u64 - 1), len
+            A::off_unchecked(ptr) + (len as u64 - 1),
+            len
         );
     }
     persist(ptr, len, fence)
@@ -124,7 +129,8 @@ pub fn clflush<T: ?Sized>(ptr: *const T, len: usize, fence: bool) {
 /// Store fence
 #[inline(always)]
 pub fn sfence() {
-    #[cfg(any(feature = "use_clwb", feature = "use_clflushopt"))] unsafe {
+    #[cfg(any(feature = "use_clwb", feature = "use_clflushopt"))]
+    unsafe {
         _mm_sfence();
     }
 }
@@ -132,7 +138,5 @@ pub fn sfence() {
 /// Memory fence
 #[inline]
 pub fn mfence() {
-    unsafe {
-        std::intrinsics::atomic_fence_seqcst()
-    }
+    unsafe { std::intrinsics::atomic_fence_seqcst() }
 }

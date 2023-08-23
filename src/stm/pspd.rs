@@ -4,23 +4,25 @@
 //! `"use_pspd"` to the feature list.
 //!
 
-use crate::cell::LazyCell;
 use crate::alloc::MemPool;
+use crate::cell::LazyCell;
 use crate::ptr::Ptr;
-use crate::{utils, ll};
+use crate::{ll, utils};
 use std::{mem, ptr};
 
 static SCRATCHPAD_SIZE: LazyCell<usize> = LazyCell::new(|| {
-    utils::nearest_pow2(std::env::var("SPD_SIZE")
-        .unwrap_or("1024".to_string())
-        .parse::<u64>()
-        .expect("RECOVERY_INFO should be an unsigned integer")) as usize
+    utils::nearest_pow2(
+        std::env::var("SPD_SIZE")
+            .unwrap_or("1024".to_string())
+            .parse::<u64>()
+            .expect("RECOVERY_INFO should be an unsigned integer"),
+    ) as usize
 });
 
 struct Page<A: MemPool> {
     len: usize,
     cap: usize,
-    next: Ptr<Page<A>, A>
+    next: Ptr<Page<A>, A>,
 }
 
 impl<A: MemPool> Page<A> {
@@ -101,7 +103,10 @@ impl<A: MemPool> Page<A> {
         }
 
         if self.cap != 0 {
-            let z = A::pre_dealloc(self as *mut _ as *mut u8, mem::size_of::<Page<A>>() + self.cap);
+            let z = A::pre_dealloc(
+                self as *mut _ as *mut u8,
+                mem::size_of::<Page<A>>() + self.cap,
+            );
             A::log64(org_off, u64::MAX, z);
             A::perform(z);
         }
@@ -109,7 +114,7 @@ impl<A: MemPool> Page<A> {
 }
 
 pub struct Scratchpad<A: MemPool> {
-    pages: Ptr<Page<A>, A>
+    pages: Ptr<Page<A>, A>,
 }
 
 impl<A: MemPool> Scratchpad<A> {
@@ -123,7 +128,7 @@ impl<A: MemPool> Scratchpad<A> {
             pg.len = 0;
             pg.next = Ptr::dangling();
             Self {
-                pages: Ptr::from_raw(pg)
+                pages: Ptr::from_raw(pg),
             }
         }
     }
@@ -150,11 +155,13 @@ impl<A: MemPool> Scratchpad<A> {
 
     #[inline]
     pub(crate) unsafe fn clear(&mut self) {
-        #[cfg(not(feature = "pin_journals"))] {
+        #[cfg(not(feature = "pin_journals"))]
+        {
             let org_off = A::off_unchecked(self.pages.off_mut());
             self.pages.release(org_off);
         }
-        #[cfg(feature = "pin_journals")] {
+        #[cfg(feature = "pin_journals")]
+        {
             let next_off = A::off_unchecked(self.pages.next.off_mut());
             if let Some(next) = self.pages.next.as_option() {
                 next.release(next_off);

@@ -145,21 +145,21 @@
 //!
 //! [`pclone`]: ./struct.Prc.html#method.pclone
 //!
-use std::panic::RefUnwindSafe;
-use std::panic::UnwindSafe;
 use crate::alloc::{MemPool, PmemUsage};
 use crate::cell::VCell;
 use crate::clone::*;
 use crate::ptr::Ptr;
 use crate::stm::*;
 use crate::*;
-use std::fmt::{self,Debug};
 use std::cmp::Ordering;
+use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::ops::Deref;
+use std::panic::RefUnwindSafe;
+use std::panic::UnwindSafe;
 use std::*;
 
 #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
@@ -169,17 +169,13 @@ struct Counter<A: MemPool> {
     strong: usize,
     weak: usize,
 
-    #[cfg(not(any(
-        feature = "no_log_rc",
-        feature = "use_pspd",
-        feature = "use_vspd"
-    )))]
+    #[cfg(not(any(feature = "no_log_rc", feature = "use_pspd", feature = "use_vspd")))]
     has_log: u8,
 
     #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
     temp: TCell<Option<*mut Self>, A>,
 
-    phantom: PhantomData<A>
+    phantom: PhantomData<A>,
 }
 
 unsafe impl<A: MemPool> PSafe for Counter<A> {}
@@ -333,7 +329,7 @@ impl<T: PSafe, A: MemPool> Prc<T, A> {
                         #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
                         temp: TCell::new_invalid(None),
 
-                        phantom: PhantomData
+                        phantom: PhantomData,
                     },
 
                     #[cfg(not(feature = "no_volatile_pointers"))]
@@ -390,7 +386,7 @@ impl<T: PSafe, A: MemPool> Prc<T, A> {
                         #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
                         temp: TCell::new_invalid(None),
 
-                        phantom: PhantomData
+                        phantom: PhantomData,
                     },
 
                     #[cfg(not(feature = "no_volatile_pointers"))]
@@ -771,10 +767,10 @@ impl<T: PSafe, A: MemPool> Prc<T, A> {
         );
         match rc {
             Some(_) => Err("already initialized".to_string()),
-            None => if A::valid(rc) {
-                unsafe {
-                    let new = A::atomic_new(
-                        PrcBox::<T, A> {
+            None => {
+                if A::valid(rc) {
+                    unsafe {
+                        let new = A::atomic_new(PrcBox::<T, A> {
                             counter: Counter {
                                 strong: 1,
                                 weak: 1,
@@ -789,7 +785,7 @@ impl<T: PSafe, A: MemPool> Prc<T, A> {
                                 #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
                                 temp: TCell::new_invalid(None),
 
-                                phantom: PhantomData
+                                phantom: PhantomData,
                             },
 
                             #[cfg(not(feature = "no_volatile_pointers"))]
@@ -798,18 +794,19 @@ impl<T: PSafe, A: MemPool> Prc<T, A> {
                             dummy: [],
                             value,
                         });
-                    let pnew = Some(Prc::<T, A>::from_inner(Ptr::from_off_unchecked(new.1)));
-                    let src = crate::utils::as_slice64(&pnew);
-                    let mut base = A::off_unchecked(rc);
-                    for i in src {
-                        A::log64(base, *i, new.3);
-                        base += 8;
+                        let pnew = Some(Prc::<T, A>::from_inner(Ptr::from_off_unchecked(new.1)));
+                        let src = crate::utils::as_slice64(&pnew);
+                        let mut base = A::off_unchecked(rc);
+                        for i in src {
+                            A::log64(base, *i, new.3);
+                            base += 8;
+                        }
+                        A::perform(new.3);
                     }
-                    A::perform(new.3);
+                    Ok(())
+                } else {
+                    Err("The object is not in the PM".to_string())
                 }
-                Ok(())
-            } else {
-                Err("The object is not in the PM".to_string())
             }
         }
     }
@@ -852,7 +849,8 @@ unsafe impl<#[may_dangle] T: PSafe + ?Sized, A: MemPool> Drop for Prc<T, A> {
             let journal = Journal::<A>::current(true).unwrap();
             let j = &*journal.0;
             self.dec_strong(j);
-            if self.strong() == 0 { // TODO: Add "or it is unreachable from the root"
+            if self.strong() == 0 {
+                // TODO: Add "or it is unreachable from the root"
                 // destroy the contained object
                 std::ptr::drop_in_place(&mut self.ptr.as_mut().value);
 
@@ -1173,17 +1171,22 @@ trait PrcBoxPtr<T: PSafe + ?Sized, A: MemPool> {
     #[cfg(not(feature = "no_log_rc"))]
     fn log_count(&self, journal: &Journal<A>) {
         let inner = self.count();
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             if inner.temp.is_none() {
                 if let Some(p) = journal.draft(inner) {
                     inner.temp.replace(p);
                 }
             }
         }
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             if inner.has_log == 0 {
                 unsafe {
-                    inner.create_log(&*journal, Notifier::NonAtomic(Ptr::from_ref(&inner.has_log)));
+                    inner.create_log(
+                        &*journal,
+                        Notifier::NonAtomic(Ptr::from_ref(&inner.has_log)),
+                    );
                 }
             }
         }
@@ -1200,7 +1203,8 @@ trait PrcBoxPtr<T: PSafe + ?Sized, A: MemPool> {
         #[cfg(not(feature = "no_log_rc"))]
         self.log_count(_journal);
 
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] unsafe {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        unsafe {
             if let Some(inner) = *inner.temp {
                 (*inner).strong += 1;
                 return;
@@ -1216,7 +1220,8 @@ trait PrcBoxPtr<T: PSafe + ?Sized, A: MemPool> {
         #[cfg(not(feature = "no_log_rc"))]
         self.log_count(_journal);
 
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] unsafe {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        unsafe {
             if let Some(inner) = *inner.temp {
                 (*inner).strong -= 1;
                 return;
@@ -1243,7 +1248,8 @@ trait PrcBoxPtr<T: PSafe + ?Sized, A: MemPool> {
         #[cfg(not(feature = "no_log_rc"))]
         self.log_count(_journal);
 
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] unsafe {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        unsafe {
             if let Some(inner) = *inner.temp {
                 (*inner).weak += 1;
                 return;
@@ -1260,7 +1266,8 @@ trait PrcBoxPtr<T: PSafe + ?Sized, A: MemPool> {
         #[cfg(not(feature = "no_log_rc"))]
         self.log_count(_journal);
 
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] unsafe {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        unsafe {
             if let Some(inner) = *inner.temp {
                 (*inner).strong -= 1;
                 return;
@@ -1276,7 +1283,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PrcBoxPtr<T, A> for Prc<T, A> {
     fn count(&self) -> &mut Counter<A> {
         let ret = &mut self.ptr.get_mut().counter;
 
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] unsafe {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        unsafe {
             if let Some(inner) = *ret.temp {
                 return &mut *inner;
             }
@@ -1296,7 +1304,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PrcBoxPtr<T, A> for PrcBox<T, A> {
             &mut rcbox.counter
         };
 
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] unsafe {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        unsafe {
             if let Some(inner) = *ret.temp {
                 return &mut *inner;
             }
@@ -1387,7 +1396,10 @@ impl<T: PSafe + ?Sized, A: MemPool> VWeak<T, A> {
         }
     }
 
-    pub fn null() -> VWeak<T, A> where T: Sized {
+    pub fn null() -> VWeak<T, A>
+    where
+        T: Sized,
+    {
         VWeak {
             ptr: std::ptr::null(),
             valid: std::ptr::null_mut(),

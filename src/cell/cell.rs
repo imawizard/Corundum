@@ -1,5 +1,5 @@
-use crate::clone::PClone;
 use crate::alloc::MemPool;
+use crate::clone::PClone;
 use crate::stm::{Journal, Logger};
 use crate::*;
 use std::cell::UnsafeCell;
@@ -236,7 +236,8 @@ impl<T: PSafe, A: MemPool> PCell<T, A> {
 
         self.create_log(journal);
 
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             if let Some(tmp) = *self.temp {
                 mem::replace(unsafe { &mut *tmp }, val)
             } else {
@@ -263,12 +264,13 @@ impl<T: PSafe, A: MemPool> PCell<T, A> {
     /// }).unwrap();
     /// ```
     pub fn into_inner(self) -> T {
-
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             self.value.into_inner()
         }
 
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             self.value.into_inner().1
         }
     }
@@ -295,12 +297,16 @@ impl<T: PSafe, A: MemPool> PCell<T, A> {
     /// }).unwrap();
     /// ```
     #[inline]
-    pub fn get(&self) -> T where T: Copy {
+    pub fn get(&self) -> T
+    where
+        T: Copy,
+    {
         // SAFETY: This can cause data races if called from a separate thread,
         // but `PCell` is `!Sync` so this won't happen.
 
         unsafe {
-            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+            {
                 if let Some(tmp) = *self.temp {
                     *tmp
                 } else {
@@ -308,7 +314,8 @@ impl<T: PSafe, A: MemPool> PCell<T, A> {
                 }
             }
 
-            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+            {
                 (*self.value.get()).1
             }
         }
@@ -336,7 +343,7 @@ impl<T: PSafe, A: MemPool> PCell<T, A> {
     pub fn update<F>(&self, f: F, journal: &Journal<A>) -> T
     where
         F: FnOnce(T) -> T,
-        T: Copy
+        T: Copy,
     {
         let old = self.get();
         let new = f(old);
@@ -351,19 +358,26 @@ impl<T: PSafe + ?Sized, A: MemPool> PCell<T, A> {
     pub(crate) fn create_log(&self, journal: &Journal<A>) {
         unsafe {
             let inner = &mut *self.value.get();
-            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+            {
                 if self.temp.is_none() {
                     if let Some(p) = journal.draft(inner) {
                         self.temp.as_mut().replace(p);
                     }
                 }
             }
-            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+            {
                 use crate::ptr::Ptr;
                 use crate::stm::Notifier;
                 if inner.0 == 0 {
-                    assert!(A::valid(inner), "The object is not in the pool's valid range");
-                    inner.1.create_log(journal, Notifier::NonAtomic(Ptr::from_ref(&inner.0)));
+                    assert!(
+                        A::valid(inner),
+                        "The object is not in the pool's valid range"
+                    );
+                    inner
+                        .1
+                        .create_log(journal, Notifier::NonAtomic(Ptr::from_ref(&inner.0)));
                 }
             }
         }
@@ -397,7 +411,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PCell<T, A> {
 
         self.create_log(journal);
 
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] unsafe {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        unsafe {
             if let Some(tmp) = *self.temp {
                 &mut *tmp
             } else {
@@ -405,7 +420,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PCell<T, A> {
             }
         }
 
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             unsafe { &mut (*self.value.get()).1 }
         }
     }
@@ -435,14 +451,16 @@ impl<T: PSafe + ?Sized, A: MemPool> PCell<T, A> {
     /// ```
     #[inline]
     pub unsafe fn as_mut(&self) -> &mut T {
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             if let Some(tmp) = *self.temp {
                 &mut *tmp
             } else {
                 &mut *self.value.get()
             }
         }
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             &mut (*self.value.get()).1
         }
     }
@@ -473,11 +491,13 @@ impl<T: PSafe + Default, A: MemPool> PCell<T, A> {
 
 impl<T: fmt::Debug + PSafe + Copy, A: MemPool> fmt::Debug for PCell<T, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             unsafe { (*self.value.get()).fmt(f) }
         }
 
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             unsafe { (*self.value.get()).1.fmt(f) }
         }
     }
@@ -486,11 +506,13 @@ impl<T: fmt::Debug + PSafe + Copy, A: MemPool> fmt::Debug for PCell<T, A> {
 impl<T: PSafe + Logger<A> + Copy, A: MemPool> PClone<A> for PCell<T, A> {
     #[inline]
     fn pclone(&self, _j: &Journal<A>) -> PCell<T, A> {
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             unsafe { PCell::new(*self.value.get()) }
         }
 
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             unsafe { PCell::new((*self.value.get()).1) }
         }
     }
@@ -499,11 +521,13 @@ impl<T: PSafe + Logger<A> + Copy, A: MemPool> PClone<A> for PCell<T, A> {
 impl<T: PSafe + Logger<A> + Copy, A: MemPool> Clone for PCell<T, A> {
     #[inline]
     fn clone(&self) -> PCell<T, A> {
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             unsafe { PCell::new((*self.value.get()).clone()) }
         }
 
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             unsafe { PCell::new((*self.value.get()).1.clone()) }
         }
     }

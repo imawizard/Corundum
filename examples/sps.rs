@@ -3,9 +3,9 @@
 //!
 //! *Consistency invariant*: All integers should present onces in the array
 
-use corundum::RootObj;
-use corundum::open_flags::*;
 use corundum::default::*;
+use corundum::open_flags::*;
+use corundum::RootObj;
 use rand::random;
 use std::time::Instant;
 
@@ -51,7 +51,7 @@ fn main() {
     let start = Instant::now();
     for _ in 0..mid {
         P::transaction(|j| {
-            let a = random::<usize>()% mid;
+            let a = random::<usize>() % mid;
             let b = mid + random::<usize>() % mid;
             root.vec[a].swap(&root.vec[b], j);
         })

@@ -1,6 +1,6 @@
+use corundum::open_flags::*;
 use corundum::*;
 use std::env;
-use corundum::open_flags::*;
 
 type P = corundum::default::Allocator;
 
@@ -18,9 +18,14 @@ fn main() {
 
     let _pool = P::open_no_root("/mnt/pmem/crndm.pool", O_CF | O_8GB).unwrap();
 
-    println!("Allocating {} block(s) of {} byte(s) in {} thread(s)", cnt*thr, len, thr);
+    println!(
+        "Allocating {} block(s) of {} byte(s) in {} thread(s)",
+        cnt * thr,
+        len,
+        thr
+    );
 
-    let mut ts = vec!();
+    let mut ts = vec![];
     for _ in 0..thr {
         ts.push(std::thread::spawn(move || {
             for _ in 0..cnt {

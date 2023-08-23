@@ -1,11 +1,9 @@
-use crate::utils::SpinLock;
-use std::panic::RefUnwindSafe;
-use std::panic::UnwindSafe;
 use crate::alloc::{MemPool, PmemUsage};
 use crate::cell::VCell;
 use crate::clone::*;
 use crate::ptr::Ptr;
 use crate::stm::*;
+use crate::utils::SpinLock;
 use crate::*;
 use std::clone::Clone as StdClone;
 use std::cmp::Ordering;
@@ -14,6 +12,8 @@ use std::hash::Hasher;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::ops::Deref;
+use std::panic::RefUnwindSafe;
+use std::panic::UnwindSafe;
 use std::sync::atomic::{self, AtomicBool, Ordering::*};
 use std::*;
 
@@ -637,10 +637,10 @@ impl<T: PSafe, A: MemPool> Parc<T, A> {
         );
         match arc {
             Some(_) => Err("already initialized".to_string()),
-            None => if A::valid(arc) {
-                unsafe {
-                    let new = A::atomic_new(
-                        ParcInner::<T, A> {
+            None => {
+                if A::valid(arc) {
+                    unsafe {
+                        let new = A::atomic_new(ParcInner::<T, A> {
                             counter: Counter {
                                 strong: 1,
                                 weak: 1,
@@ -653,18 +653,19 @@ impl<T: PSafe, A: MemPool> Parc<T, A> {
                             marker: PhantomData,
                             value,
                         });
-                    let pnew = Some(Parc::<T, A>::from_inner(Ptr::from_off_unchecked(new.1)));
-                    let src = crate::utils::as_slice64(&pnew);
-                    let mut base = A::off_unchecked(arc);
-                    for i in src {
-                        A::log64(base, *i, new.3);
-                        base += 8;
+                        let pnew = Some(Parc::<T, A>::from_inner(Ptr::from_off_unchecked(new.1)));
+                        let src = crate::utils::as_slice64(&pnew);
+                        let mut base = A::off_unchecked(arc);
+                        for i in src {
+                            A::log64(base, *i, new.3);
+                            base += 8;
+                        }
+                        A::perform(new.3);
                     }
-                    A::perform(new.3);
+                    Ok(())
+                } else {
+                    Err("The object is not in the PM".to_string())
                 }
-                Ok(())
-            } else {
-                Err("The object is not in the PM".to_string())
             }
         }
     }
@@ -709,8 +710,11 @@ unsafe impl<#[may_dangle] T: PSafe + ?Sized, A: MemPool> Drop for Parc<T, A> {
             // Because `fetch_sub` is already atomic, we do not need to synchronize
             // with other threads unless we are going to delete the object. This
             // same logic applies to the below `fetch_sub` to the `weak` count.
-            if fetch_dec(inner.counter.lock.as_mut(),
-                &mut inner.counter.strong, journal) != 1
+            if fetch_dec(
+                inner.counter.lock.as_mut(),
+                &mut inner.counter.strong,
+                journal,
+            ) != 1
             {
                 return;
             }
@@ -724,8 +728,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PClone<A> for Parc<T, A> {
     #[inline]
     fn pclone(&self, j: &Journal<A>) -> Parc<T, A> {
         let inner = self.inner();
-        let old_size = fetch_inc(inner.counter.lock.as_mut(),
-                        &mut inner.counter.strong, j);
+        let old_size = fetch_inc(inner.counter.lock.as_mut(), &mut inner.counter.strong, j);
 
         // However we need to guard against massive ref counts in case someone
         // is `mem::forget`ing Arcs. If we don't do this the count can overflow
@@ -1051,9 +1054,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Drop for Weak<T, A> {
                 return;
             };
 
-            if fetch_dec(inner.counter.lock.as_mut(),
-                &mut inner.counter.weak, j) == 1
-            {
+            if fetch_dec(inner.counter.lock.as_mut(), &mut inner.counter.weak, j) == 1 {
                 unsafe {
                     A::free(self.ptr.as_mut());
                 }
@@ -1075,8 +1076,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PClone<A> for Weak<T, A> {
         // fetch_add (ignoring the lock) because the weak count is only locked
         // where are *no other* weak pointers in existence. (So we can't be
         // running this code in that case).
-        let old_size = fetch_inc(inner.counter.lock.as_mut(),
-                        &mut inner.counter.weak, j);
+        let old_size = fetch_inc(inner.counter.lock.as_mut(), &mut inner.counter.weak, j);
 
         // See comments in Arc::clone() for why we do this (for mem::forget).
         if old_size > MAX_REFCOUNT {

@@ -8,7 +8,7 @@ pub mod vspd;
 
 use crate::alloc::MemPool;
 use crate::result::Result;
-use crate::{TxInSafe,TxOutSafe};
+use crate::{TxInSafe, TxOutSafe};
 use std::panic::UnwindSafe;
 
 pub use chaperon::*;

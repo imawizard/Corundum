@@ -23,7 +23,6 @@ impl<A: MemPool, T> !TxOutSafe for Slice<T, A> {}
 unsafe impl<T: PSafe, A: MemPool> PSafe for Slice<T, A> {}
 
 impl<T: PSafe, A: MemPool> Slice<T, A> {
-
     /// Creates a new fat pointer given a slice
     pub unsafe fn new(x: &[T]) -> Self {
         if x.len() == 0 {
@@ -67,18 +66,14 @@ impl<T: PSafe, A: MemPool> Slice<T, A> {
     #[inline]
     pub fn get(&self, i: usize) -> &T {
         assert!(i < self.cap, "index out of range");
-        unsafe {
-            A::deref_mut(self.off + i as u64 * std::mem::size_of::<T>() as u64).unwrap()
-        }
+        unsafe { A::deref_mut(self.off + i as u64 * std::mem::size_of::<T>() as u64).unwrap() }
     }
 
     /// Returns a mutable reference to the object at index `i`
     #[inline]
     pub fn get_mut(&self, i: usize) -> &mut T {
         assert!(i < self.cap, "index out of range");
-        unsafe {
-            A::deref_mut(self.off + i as u64 * std::mem::size_of::<T>() as u64).unwrap()
-        }
+        unsafe { A::deref_mut(self.off + i as u64 * std::mem::size_of::<T>() as u64).unwrap() }
     }
 
     /// Returns a mutable reference to the object at index `i` without checking

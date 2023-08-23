@@ -70,7 +70,7 @@ pub struct Journal<A: MemPool> {
     sec_id: u64,
     prev_off: u64,
     next_off: u64,
-    chaperon: [u8;64],
+    chaperon: [u8; 64],
 }
 
 impl<A: MemPool> !PSafe for Journal<A> {}
@@ -94,13 +94,15 @@ impl<A: MemPool> Page<A> {
     #[inline]
     /// Writes a new log to the journal
     fn write(&mut self, log: LogEnum, notifier: Notifier<A>) -> Ptr<Log<A>, A> {
-        #[cfg(not(feature = "use_ntstore"))] {
+        #[cfg(not(feature = "use_ntstore"))]
+        {
             self.logs[self.len] = Log::new(log, notifier);
         }
-        #[cfg(feature = "use_ntstore")] unsafe {
+        #[cfg(feature = "use_ntstore")]
+        unsafe {
             std::intrinsics::nontemporal_store(&mut self.logs[self.len], Log::new(log, notifier));
         }
-        persist_with_log::<_,A>(&self.logs[self.len], std::mem::size_of::<Log<A>>(), false);
+        persist_with_log::<_, A>(&self.logs[self.len], std::mem::size_of::<Log<A>>(), false);
 
         let log = unsafe { Ptr::new_unchecked(&self.logs[self.len]) };
         self.len += 1;
@@ -124,14 +126,14 @@ impl<A: MemPool> Page<A> {
         }
     }
 
-    unsafe fn commit_dealloc(&mut self,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    unsafe fn commit_dealloc(
+        &mut self,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         for i in 0..self.len {
             self.logs[i].commit_dealloc(
                 #[cfg(feature = "check_double_free")]
-                check_double_free
+                check_double_free,
             );
         }
     }
@@ -142,26 +144,28 @@ impl<A: MemPool> Page<A> {
         }
     }
 
-    unsafe fn rollback_dealloc(&mut self,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    unsafe fn rollback_dealloc(
+        &mut self,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         for i in 0..self.len {
             self.logs[i].rollback_drop_on_abort(
                 #[cfg(feature = "check_double_free")]
-                check_double_free
+                check_double_free,
             );
         }
     }
 
-    unsafe fn recover(&mut self, rollback: bool,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    unsafe fn recover(
+        &mut self,
+        rollback: bool,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         for i in 0..self.len {
-            self.logs[self.len - i - 1].recover(rollback,
+            self.logs[self.len - i - 1].recover(
+                rollback,
                 #[cfg(feature = "check_double_free")]
-                check_double_free
+                check_double_free,
             );
         }
     }
@@ -172,14 +176,14 @@ impl<A: MemPool> Page<A> {
         self.logs = [Default::default(); PAGE_LOG_SLOTS];
     }
 
-    unsafe fn clear(&mut self,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    unsafe fn clear(
+        &mut self,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         for i in self.head..self.len {
             self.logs[i].clear(
                 #[cfg(feature = "check_double_free")]
-                check_double_free
+                check_double_free,
             );
             self.head += 1;
         }
@@ -240,7 +244,7 @@ impl<A: MemPool> Journal<A> {
     /// Sets a flag
     pub unsafe fn set(&mut self, flag: u64) {
         self.flags |= flag;
-        persist_obj_with_log::<_,A>(&self.flags, true);
+        persist_obj_with_log::<_, A>(&self.flags, true);
     }
 
     /// Resets a flag
@@ -262,7 +266,6 @@ impl<A: MemPool> Journal<A> {
         if *head_off != u64::MAX {
             let j = utils::read_addr::<Journal<A>>(A::start() + *head_off);
             A::log64(A::off_unchecked(&j.prev_off), me, zone);
-
         }
         // if let Ok(j) = A::deref_mut::<Journal<A>>(*head_off) {
         //     A::log64(A::off_unchecked(&j.prev_off), me, zone);
@@ -297,12 +300,13 @@ impl<A: MemPool> Journal<A> {
                 len: 0,
                 head: 0,
                 next: self.pages,
-                logs: [Default::default(); PAGE_LOG_SLOTS]
+                logs: [Default::default(); PAGE_LOG_SLOTS],
             };
             let (_, off, _, z) = A::atomic_new(page);
             A::log64(A::off_unchecked(self.pages.off_ref()), off, z);
 
-            #[cfg(feature = "pin_journals")] {
+            #[cfg(feature = "pin_journals")]
+            {
                 A::log64(A::off_unchecked(self.current.off_ref()), off, z);
                 // eprintln!("new page for {:p} at {:x}", self as *const Self, off);
             }
@@ -361,10 +365,17 @@ impl<A: MemPool> Journal<A> {
         let mut pgs = vec![];
         while let Some(page) = curr.as_option() {
             if info_level > 2 {
-                pgs.push(format!("  page {:<3} at offset {:x} (len = {}, full = {})", i, page.off(), page.len, page.is_full()));
+                pgs.push(format!(
+                    "  page {:<3} at offset {:x} (len = {}, full = {})",
+                    i,
+                    page.off(),
+                    page.len,
+                    page.is_full()
+                ));
             }
 
-            #[cfg(feature = "pin_journals")] {
+            #[cfg(feature = "pin_journals")]
+            {
                 if self.current == *page {
                     _cidx = i;
                 }
@@ -393,14 +404,24 @@ impl<A: MemPool> Journal<A> {
             }
         }
 
-        let mut res = format!("Committed: {}\n",
-            if self.is_committed() { "Yes" } else { "No" });
+        let mut res = format!(
+            "Committed: {}\n",
+            if self.is_committed() { "Yes" } else { "No" }
+        );
         res += &format!("Chaperoned session id: {}\n", self.sec_id);
-        res += &format!("Chaperone file: {}\n", String::from_utf8(self.chaperon.to_vec()).unwrap_or("".to_string()));
-        res += &format!("Number of pages: {}\n", i-1);
+        res += &format!(
+            "Chaperone file: {}\n",
+            String::from_utf8(self.chaperon.to_vec()).unwrap_or("".to_string())
+        );
+        res += &format!("Number of pages: {}\n", i - 1);
 
-        #[cfg(feature = "pin_journals")] {
-            res += &format!("current page at offset {:x} (index = {})", self.current.off(), _cidx);
+        #[cfg(feature = "pin_journals")]
+        {
+            res += &format!(
+                "current page at offset {:x} (index = {})",
+                self.current.off(),
+                _cidx
+            );
         }
 
         res += &format!("Number of logs: {}\n", total_logs);
@@ -421,11 +442,12 @@ impl<A: MemPool> Journal<A> {
     }
 
     /// Commits all logs in the journal
-    pub unsafe fn commit(&mut self,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    pub unsafe fn commit(
+        &mut self,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             self.spd.commit();
         }
         let mut curr = self.pages;
@@ -442,7 +464,7 @@ impl<A: MemPool> Journal<A> {
         while let Some(page) = curr.as_option() {
             page.commit_dealloc(
                 #[cfg(feature = "check_double_free")]
-                check_double_free
+                check_double_free,
             );
             curr = page.next;
         }
@@ -451,11 +473,12 @@ impl<A: MemPool> Journal<A> {
     }
 
     /// Reverts all changes
-    pub unsafe fn rollback(&mut self,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    pub unsafe fn rollback(
+        &mut self,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             self.spd.rollback();
         }
         let mut curr = self.pages;
@@ -472,7 +495,7 @@ impl<A: MemPool> Journal<A> {
         while let Some(page) = curr.as_option() {
             page.rollback_dealloc(
                 #[cfg(feature = "check_double_free")]
-                check_double_free
+                check_double_free,
             );
             curr = page.next;
         }
@@ -481,9 +504,9 @@ impl<A: MemPool> Journal<A> {
     }
 
     /// Recovers from a crash or power failure
-    pub unsafe fn recover(&mut self,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    pub unsafe fn recover(
+        &mut self,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
         let mut curr = self.pages;
         while let Some(page) = curr.as_option() {
@@ -494,7 +517,8 @@ impl<A: MemPool> Journal<A> {
         let resume = self.resume();
         if !self.is_set(JOURNAL_COMMITTED) || resume {
             let rollback = !resume || !self.is_set(JOURNAL_COMMITTED);
-            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+            {
                 if rollback {
                     self.spd.rollback();
                 } else {
@@ -502,9 +526,10 @@ impl<A: MemPool> Journal<A> {
                 }
             }
             while let Some(page) = curr.as_option() {
-                page.recover(rollback,
+                page.recover(
+                    rollback,
                     #[cfg(feature = "check_double_free")]
-                    check_double_free
+                    check_double_free,
                 );
                 curr = page.next;
             }
@@ -513,11 +538,12 @@ impl<A: MemPool> Journal<A> {
     }
 
     /// Clears all logs and drops itself from the memory pool
-    pub unsafe fn clear(&mut self,
-        #[cfg(feature = "check_double_free")]
-        check_double_free: &mut HashSet<u64>
+    pub unsafe fn clear(
+        &mut self,
+        #[cfg(feature = "check_double_free")] check_double_free: &mut HashSet<u64>,
     ) {
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             self.spd.clear();
         }
         #[cfg(feature = "pin_journals")]
@@ -526,21 +552,23 @@ impl<A: MemPool> Journal<A> {
             while let Some(p) = page {
                 p.clear(
                     #[cfg(feature = "check_double_free")]
-                    check_double_free
+                    check_double_free,
                 );
                 page = p.next.as_option();
             }
             self.current = self.pages;
         }
 
-        #[cfg(not(feature = "pin_journals"))] {
+        #[cfg(not(feature = "pin_journals"))]
+        {
             while let Some(page) = self.pages.as_option() {
                 let nxt = page.next;
                 page.clear(
                     #[cfg(feature = "check_double_free")]
-                    check_double_free
+                    check_double_free,
                 );
-                let z = A::pre_dealloc(page.as_mut_ptr() as *mut u8, std::mem::size_of::<Page<A>>());
+                let z =
+                    A::pre_dealloc(page.as_mut_ptr() as *mut u8, std::mem::size_of::<Page<A>>());
                 A::log64(A::off_unchecked(self.pages.off_ref()), nxt.off(), z);
                 A::perform(z);
 
@@ -556,7 +584,8 @@ impl<A: MemPool> Journal<A> {
         // }
         self.complete();
 
-        #[cfg(not(feature = "pin_journals"))] {
+        #[cfg(not(feature = "pin_journals"))]
+        {
             A::drop_journal(self);
             A::journals(|journals| {
                 journals.remove(&std::thread::current().id());
@@ -595,8 +624,8 @@ impl<A: MemPool> Journal<A> {
         } else {
             if self.sec_id != 0 && !self.chaperon.is_empty() {
                 let s = String::from_utf8(self.chaperon.to_vec()).unwrap();
-                let c = unsafe { Chaperon::load(&s)
-                    .expect(&format!("Missing chaperon file `{}`", s)) };
+                let c =
+                    unsafe { Chaperon::load(&s).expect(&format!("Missing chaperon file `{}`", s)) };
                 c.completed()
             } else {
                 true
@@ -607,7 +636,7 @@ impl<A: MemPool> Journal<A> {
     pub(crate) fn start_session(&mut self, chaperon: &mut Chaperon) {
         let mut filename = [0u8; 64];
         let s = chaperon.filename().as_bytes();
-        for i in 0..usize::min(64,s.len()) {
+        for i in 0..usize::min(64, s.len()) {
             filename[i] = s[i];
         }
         if self.sec_id != 0 {
@@ -631,7 +660,7 @@ impl<A: MemPool> Journal<A> {
                     let id = self.sec_id;
                     self.chaperon = [0; 64];
                     self.sec_id = 0;
-                    persist_obj_with_log::<_,A>(&self.sec_id, true);
+                    persist_obj_with_log::<_, A>(&self.sec_id, true);
                     c.finish(id as usize);
                 } else {
                     self.chaperon = [0; 64];
@@ -684,7 +713,10 @@ impl<A: MemPool> Journal<A> {
                 journals.insert(tid, (offset, 0));
             }
             if let Some((j, c)) = journals.get_mut(&tid) {
-                Some((Ptr::<Self, A>::from_off_unchecked(*j).as_ptr(), c as *mut i32))
+                Some((
+                    Ptr::<Self, A>::from_off_unchecked(*j).as_ptr(),
+                    c as *mut i32,
+                ))
             } else {
                 None
             }
@@ -694,7 +726,7 @@ impl<A: MemPool> Journal<A> {
     /// Returns true if there is a running transaction on the current thread
     pub fn is_running() -> bool {
         if let Some((_, cnt)) = Self::try_current() {
-            unsafe {*cnt != 0}
+            unsafe { *cnt != 0 }
         } else {
             false
         }
@@ -714,7 +746,10 @@ impl<A: MemPool> Journal<A> {
                     None
                 } else {
                     if let Some((j, c)) = journals.get_mut(&tid) {
-                        Some((Ptr::<Self, A>::from_off_unchecked(*j).as_ptr(), c as *mut i32))
+                        Some((
+                            Ptr::<Self, A>::from_off_unchecked(*j).as_ptr(),
+                            c as *mut i32,
+                        ))
                     } else {
                         None
                     }

@@ -316,7 +316,6 @@
 //                 }
 //             } else {
 //                 /* replacing root node, the tree grows in height */
-
 //                 let mut items: [NodeItem<V>; BTREE_ORDER - 1] = Default::default();
 //                 let mut slots: [PmemObj<Node<V>>; BTREE_ORDER] = Default::default();
 //                 items[0] = m;

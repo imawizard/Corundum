@@ -1,7 +1,7 @@
-use std::ops::Deref;
-use std::panic::{UnwindSafe, RefUnwindSafe};
 use std::cell::Cell;
 use std::mem::MaybeUninit;
+use std::ops::Deref;
+use std::panic::{RefUnwindSafe, UnwindSafe};
 
 /// A memory cell which is initialized on the first access
 pub struct LazyCell<T, F = fn() -> T> {
@@ -16,7 +16,10 @@ impl<T, F: UnwindSafe> UnwindSafe for LazyCell<T, F> where Cell<T>: UnwindSafe {
 impl<T, F> LazyCell<T, F> {
     /// Creates a new lazy value with the given initializing function.
     pub const fn new(f: F) -> LazyCell<T, F> {
-        LazyCell { cell: Cell::new(None), init: Cell::new(Some(f)) }
+        LazyCell {
+            cell: Cell::new(None),
+            init: Cell::new(Some(f)),
+        }
     }
 }
 

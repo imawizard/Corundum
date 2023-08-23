@@ -1,7 +1,7 @@
 use crate::alloc::MemPool;
 use crate::cell::VCell;
 use crate::ptr::Ptr;
-use crate::stm::{Journal, Log, Notifier, Logger};
+use crate::stm::{Journal, Log, Logger, Notifier};
 use crate::*;
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
@@ -97,23 +97,30 @@ struct MutexInner {
     lock: (bool, libc::pthread_mutex_t, libc::pthread_mutexattr_t),
 
     #[cfg(any(feature = "no_pthread", windows))]
-    lock: (bool, u64)
+    lock: (bool, u64),
 }
 
 impl Default for MutexInner {
-
     #[cfg(not(any(feature = "no_pthread", windows)))]
     fn default() -> Self {
         use std::mem::MaybeUninit;
         let mut attr = MaybeUninit::<libc::pthread_mutexattr_t>::uninit();
         let mut lock = libc::PTHREAD_MUTEX_INITIALIZER;
-        unsafe { init_lock(&mut lock, attr.as_mut_ptr()); }
-        MutexInner { borrowed: false, lock: (false, lock, unsafe { attr.assume_init() }) }
+        unsafe {
+            init_lock(&mut lock, attr.as_mut_ptr());
+        }
+        MutexInner {
+            borrowed: false,
+            lock: (false, lock, unsafe { attr.assume_init() }),
+        }
     }
 
     #[cfg(any(feature = "no_pthread", windows))]
     fn default() -> Self {
-        MutexInner { borrowed: false, lock: (false, 0) }
+        MutexInner {
+            borrowed: false,
+            lock: (false, 0),
+        }
     }
 }
 
@@ -122,13 +129,17 @@ impl MutexInner {
         if self.borrowed {
             false
         } else {
-            unsafe { utils::as_mut(self).borrowed = true; }
+            unsafe {
+                utils::as_mut(self).borrowed = true;
+            }
             true
         }
     }
 
     fn release(&self) {
-        unsafe { utils::as_mut(self).borrowed = false; }
+        unsafe {
+            utils::as_mut(self).borrowed = false;
+        }
     }
 }
 
@@ -172,8 +183,13 @@ impl<T: PSafe, A: MemPool> PMutex<T, A> {
         unsafe {
             let inner = &mut *self.data.get();
             if inner.0 == 0 {
-                assert!(A::valid(inner), "The object is not in the pool's valid range");
-                inner.1.create_log(journal, Notifier::NonAtomic(Ptr::from_ref(&inner.0)));
+                assert!(
+                    A::valid(inner),
+                    "The object is not in the pool's valid range"
+                );
+                inner
+                    .1
+                    .create_log(journal, Notifier::NonAtomic(Ptr::from_ref(&inner.0)));
             }
             &mut inner.1
         }
@@ -195,10 +211,12 @@ impl<T, A: MemPool> PMutex<T, A> {
         unsafe {
             // Log::unlock_on_failure(self.inner.get(), journal);
             let lock = &self.inner.lock.1 as *const _ as *mut _;
-            #[cfg(not(any(feature = "no_pthread", windows)))] {
+            #[cfg(not(any(feature = "no_pthread", windows)))]
+            {
                 libc::pthread_mutex_lock(lock);
             }
-            #[cfg(any(feature = "no_pthread", windows))] {
+            #[cfg(any(feature = "no_pthread", windows))]
+            {
                 let tid = std::thread::current().id().as_u64().get();
                 while intrinsics::atomic_cxchg_acqrel_acquire(lock, 0, tid).0 != tid {}
             }
@@ -413,8 +431,7 @@ pub unsafe fn init_lock(mutex: *mut libc::pthread_mutex_t, attr: *mut libc::pthr
     *mutex = libc::PTHREAD_MUTEX_INITIALIZER;
     let result = libc::pthread_mutexattr_init(attr);
     debug_assert_eq!(result, 0);
-    let result =
-        libc::pthread_mutexattr_settype(attr, libc::PTHREAD_MUTEX_RECURSIVE);
+    let result = libc::pthread_mutexattr_settype(attr, libc::PTHREAD_MUTEX_RECURSIVE);
     debug_assert_eq!(result, 0);
     let result = libc::pthread_mutex_init(mutex, attr);
     debug_assert_eq!(result, 0);

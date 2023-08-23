@@ -5,14 +5,14 @@ use crate::cell::RootObj;
 use crate::clone::*;
 use crate::ptr::Ptr;
 use crate::stm::*;
-use crate::{PSafe, VSafe, TxOutSafe};
+use crate::{PSafe, TxOutSafe, VSafe};
 use std::cmp::Ordering;
 use std::convert::From;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::marker::Unpin;
 use std::mem;
-use std::ops::{Deref,DerefMut};
+use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::ptr::{self, NonNull};
 
@@ -256,21 +256,23 @@ impl<T: PSafe, A: MemPool> Pbox<T, A> {
         );
         match boxed {
             Some(_) => Err("already initialized".to_string()),
-            None => if A::valid(boxed) {
-                unsafe {
-                    let new = A::atomic_new(value);
-                    let bnew = Some(Pbox::<T, A>::from_raw(new.0));
-                    let src = crate::utils::as_slice64(&bnew);
-                    let mut base = A::off_unchecked(boxed);
-                    for i in src {
-                        A::log64(base, *i, new.3);
-                        base += 8;
+            None => {
+                if A::valid(boxed) {
+                    unsafe {
+                        let new = A::atomic_new(value);
+                        let bnew = Some(Pbox::<T, A>::from_raw(new.0));
+                        let src = crate::utils::as_slice64(&bnew);
+                        let mut base = A::off_unchecked(boxed);
+                        for i in src {
+                            A::log64(base, *i, new.3);
+                            base += 8;
+                        }
+                        A::perform(new.3);
                     }
-                    A::perform(new.3);
+                    Ok(())
+                } else {
+                    Err("The object is not in the PM".to_string())
                 }
-                Ok(())
-            } else {
-                Err("The object is not in the PM".to_string())
             }
         }
     }
@@ -630,7 +632,8 @@ impl<T: PSafe, A: MemPool> DerefMut for Pbox<T, A> {
         let d = self.0.as_mut();
         if self.1 == 0 && A::valid(&self.1) {
             let journal = Journal::<A>::try_current()
-                .expect("Unrecoverable data modification").0;
+                .expect("Unrecoverable data modification")
+                .0;
             unsafe {
                 d.create_log(&*journal, Notifier::NonAtomic(Ptr::from_ref(&self.1)));
             }

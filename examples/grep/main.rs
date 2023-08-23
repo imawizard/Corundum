@@ -7,9 +7,9 @@ mod producer;
 mod stack;
 
 use consumer::Consumer;
-use hashmap::*;
 use corundum::default::*;
 use corundum::open_flags::*;
+use hashmap::*;
 use producer::Producer;
 use stack::*;
 use std::env;
@@ -94,11 +94,14 @@ fn main() {
         } else if s == "-C" {
             cont = true;
         } else if s == "-N" {
-            unsafe {PRINT = false;}
+            unsafe {
+                PRINT = false;
+            }
         } else if s == "-D" {
             dist = true;
         } else if s == "-I" {
-            isld = true; cont = true;
+            isld = true;
+            cont = true;
         } else if s == "-P" {
             prep = true;
         } else if filename.is_empty() {
@@ -167,15 +170,13 @@ fn main() {
             }
             for _ in 0..c.max(1) {
                 consumers.push(
-                    Parc::new(
-                        Consumer::new(&pattern, root.lines.pclone(j), j),
-                        j,
-                    ),
+                    Parc::new(Consumer::new(&pattern, root.lines.pclone(j), j), j),
                     j,
                 );
             }
         }
-    }).unwrap();
+    })
+    .unwrap();
 
     eprintln!(
         "Total remaining from previous run: {} ",
@@ -240,7 +241,8 @@ fn main() {
                         work = consumer.take_one(&mut lines, j);
                     }
                 }
-            }).unwrap();
+            })
+            .unwrap();
         }
 
         for thread in c_threads {
@@ -250,7 +252,7 @@ fn main() {
         eprintln!();
 
         if dist {
-            let mut i=0;
+            let mut i = 0;
             for c in &*consumers {
                 i += 1;
                 eprintln!("c#{}.private_buf_size = {}", i, c.private_buf_size());
@@ -258,14 +260,15 @@ fn main() {
         }
 
         // Display results
-        if unsafe {PRINT} {
+        if unsafe { PRINT } {
             P::transaction(|j| {
                 for c in &*consumers {
                     c.collect(root.words.pclone(j), j);
                 }
                 let words = root.words.lock(j);
                 println!("{}", words);
-            }).unwrap();
+            })
+            .unwrap();
         }
     }
     println!("Memory usage = {} bytes", P::used());

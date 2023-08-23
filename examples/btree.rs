@@ -1,9 +1,9 @@
 //! Implementation of persistent binary search tree
 
+use corundum::open_flags::*;
 use corundum::*;
 use std::env;
 use std::fmt::{Display, Error, Formatter};
-use corundum::open_flags::*;
 
 type P = default::Allocator;
 //type P = Heap;
@@ -11,7 +11,7 @@ type Pbox<T> = corundum::Pbox<T, P>;
 type Ptr = Option<Pbox<BTreeNode>>;
 
 struct FixStr {
-    chars: [u8; 32]
+    chars: [u8; 32],
 }
 
 impl From<String> for FixStr {
@@ -19,14 +19,9 @@ impl From<String> for FixStr {
         let value = value.as_bytes();
         let mut chars = [0u8; 32];
         unsafe {
-            std::ptr::copy_nonoverlapping(
-                &value[0],
-                &mut chars[0] as *mut u8,
-                value.len().min(32));
+            std::ptr::copy_nonoverlapping(&value[0], &mut chars[0] as *mut u8, value.len().min(32));
         }
-        FixStr {
-            chars
-        }
+        FixStr { chars }
     }
 }
 

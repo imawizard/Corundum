@@ -8,12 +8,12 @@
 #![allow(incomplete_features)]
 #![feature(type_name_of_val)]
 
-use std::mem::MaybeUninit;
 use corundum::default::*;
+use corundum::open_flags::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::mem::MaybeUninit;
 use std::panic::RefUnwindSafe;
-use corundum::open_flags::*;
 
 const BUCKETS_MAX: usize = 10;
 
@@ -40,7 +40,7 @@ impl<V: PSafe> Default for KvStore<V> {
             std::ptr::copy_nonoverlapping(vec.as_ptr(), &mut (*me.as_mut_ptr())[0], BUCKETS_MAX);
             Self {
                 buckets: me.assume_init(),
-                values : PRefCell::new(ValueVector::new())
+                values: PRefCell::new(ValueVector::new()),
             }
         }
     }
@@ -74,7 +74,8 @@ where
                 P::transaction(|j| {
                     let values = self.values.borrow();
                     values[e.1].set(val, j);
-                }).unwrap();
+                })
+                .unwrap();
                 return;
             }
         }
@@ -85,7 +86,8 @@ where
             values.push(PCell::new(val), j);
             let mut bucket = self.buckets[index].borrow_mut(j);
             bucket.push((key, values.len() - 1), j);
-        }).unwrap();
+        })
+        .unwrap();
     }
 }
 

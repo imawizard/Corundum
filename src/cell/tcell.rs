@@ -1,12 +1,12 @@
-use crate::RootObj;
-use crate::stm::Journal;
 use crate::alloc::MemPool;
-use crate::{PSafe, VSafe, utils};
+use crate::stm::Journal;
+use crate::RootObj;
+use crate::{utils, PSafe, VSafe};
 use std::cmp::*;
-use std::mem::*;
+use std::fmt::{self, Debug};
 use std::marker::PhantomData;
+use std::mem::*;
 use std::ops::{Deref, DerefMut};
-use std::fmt::{self,Debug};
 
 /// A persistent memory location containing a volatile data valid during a
 /// single transaction

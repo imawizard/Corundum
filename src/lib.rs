@@ -127,7 +127,6 @@
 #![feature(allocator_api)]
 #![feature(associated_type_bounds)]
 // #![feature(async_stream)]
-
 #![allow(dead_code)]
 #![allow(incomplete_features)]
 #![allow(type_alias_bounds)]
@@ -135,40 +134,40 @@
 
 pub(crate) const PAGE_LOG_SLOTS: usize = 128;
 
+pub mod gen;
 pub mod ll;
 pub mod prc;
-pub mod sync;
 pub mod ptr;
-pub mod stm;
 pub mod stat;
-pub mod utils;
 pub mod stl;
-pub mod gen;
+pub mod stm;
+pub mod sync;
+pub mod utils;
 
 mod alloc;
 mod boxed;
 mod cell;
 mod clone;
-mod str;
-pub mod vec;
 mod convert;
 mod marker;
+mod str;
 mod tests;
+pub mod vec;
 
-pub use cell::RootObj;
-pub use stm::transaction;
-pub use marker::*;
-pub use crndm_derive::*;
-pub use boxed::*;
-pub use prc::Prc;
-pub use sync::{Parc,PMutex};
-pub use clone::*;
-pub use vec::Vec as PVec;
 pub use self::str::{String as PString, ToPString, ToPStringSlice};
-pub use cell::*;
 pub use alloc::*;
+pub use boxed::*;
+pub use cell::RootObj;
+pub use cell::*;
+pub use clone::*;
 pub use convert::*;
+pub use crndm_derive::*;
+pub use marker::*;
+pub use prc::Prc;
+pub use stm::transaction;
 pub use stm::Journal;
+pub use sync::{PMutex, Parc};
+pub use vec::Vec as PVec;
 
 // This is an example of defining a new buddy allocator type
 // `Allocator` is the default allocator with Buddy Allocation algorithm

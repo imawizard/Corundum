@@ -1,16 +1,16 @@
 #![cfg(target_arch = "x86_64")]
 
+use crate::cell::LazyCell;
 use std::any::type_name;
 use std::any::Any;
-use std::marker::PhantomData;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::io::*;
+use std::marker::PhantomData;
 use std::ops::AddAssign;
 use std::sync::Mutex;
 use std::thread::{current, ThreadId};
 use std::time::Instant;
-use std::io::*;
-use crate::cell::LazyCell;
 
 #[derive(Clone)]
 struct Data {
@@ -19,13 +19,18 @@ struct Data {
     sum2: f64,
     min: u64,
     max: u64,
-    points: HashMap<u64, u64>
+    points: HashMap<u64, u64>,
 }
 
 impl Default for Data {
     fn default() -> Self {
-        Data { sum: 0, cnt: 0, sum2: 0f64, min: u64::MAX, max:0,
-            points: Default::default()
+        Data {
+            sum: 0,
+            cnt: 0,
+            sum2: 0f64,
+            min: u64::MAX,
+            max: 0,
+            points: Default::default(),
         }
     }
 }
@@ -60,7 +65,7 @@ struct Stat {
     cnt_logging: u64,
     nop: u64,
     cnt_nop: u64,
-    custom: HashMap<String, Data>
+    custom: HashMap<String, Data>,
 }
 
 pub enum Measure<A: Any> {
@@ -81,7 +86,7 @@ pub enum Measure<A: Any> {
     Custom(Instant, String),
     Batch(Instant, String, u64),
     Transaction,
-    Unknown(PhantomData<A>)
+    Unknown(PhantomData<A>),
 }
 
 static mut HIST: Option<bool> = None;
@@ -134,13 +139,17 @@ macro_rules! add {
             Err(p) => p.into_inner(),
         };
         let tid = current().id();
-        let stat = stat.entry((tid,type_name::<$tp>())).or_default();
+        let stat = stat.entry((tid, type_name::<$tp>())).or_default();
         let counter = stat.custom.entry($m).or_default();
         counter.sum += t;
         counter.cnt += 1;
         counter.sum2 += f64::powi(t as f64, 2);
-        if counter.max < t { counter.max = t; }
-        if counter.min > t { counter.min = t; }
+        if counter.max < t {
+            counter.max = t;
+        }
+        if counter.min > t {
+            counter.min = t;
+        }
         if hist_enabled() {
             let p = counter.points.entry(t).or_default();
             *p += 1;
@@ -155,7 +164,7 @@ macro_rules! add {
             Err(p) => p.into_inner(),
         };
         let tid = current().id();
-        let stat = stat.entry((tid,type_name::<$tp>())).or_default();
+        let stat = stat.entry((tid, type_name::<$tp>())).or_default();
         let counter = stat.custom.entry($m).or_default();
         counter.sum += t;
         counter.cnt += $cnt;
@@ -176,7 +185,7 @@ macro_rules! add {
             Err(p) => p.into_inner(),
         };
         let tid = current().id();
-        let stat = stat.entry((tid,type_name::<$tp>())).or_default();
+        let stat = stat.entry((tid, type_name::<$tp>())).or_default();
         stat.$id += t;
         stat.$cnt += 1;
     };
@@ -189,7 +198,7 @@ macro_rules! add {
             Err(p) => p.into_inner(),
         };
         let tid = current().id();
-        let stat = stat.entry((tid,type_name::<$tp>())).or_default();
+        let stat = stat.entry((tid, type_name::<$tp>())).or_default();
         stat.$id += t;
     };
     ($tp:ty,$cnt:ident) => {
@@ -198,7 +207,7 @@ macro_rules! add {
             Err(p) => p.into_inner(),
         };
         let tid = current().id();
-        let stat = stat.entry((tid,type_name::<$tp>())).or_default();
+        let stat = stat.entry((tid, type_name::<$tp>())).or_default();
         stat.$cnt += 1;
     };
 }
@@ -293,15 +302,19 @@ impl AddAssign<&Stat> for Stat {
         self.cnt_clear += d.cnt_clear;
         self.cnt_new_page += d.cnt_new_page;
         self.cnt_new_jrnl += d.cnt_new_jrnl;
-        for (k,v) in &d.custom {
+        for (k, v) in &d.custom {
             let counter = self.custom.entry(k.to_string()).or_default();
             counter.cnt += v.cnt;
             counter.sum += v.sum;
             counter.sum2 += v.sum2;
-            if counter.max < v.max { counter.max = v.max; }
-            if counter.min > v.min { counter.min = v.min; }
+            if counter.max < v.max {
+                counter.max = v.max;
+            }
+            if counter.min > v.min {
+                counter.min = v.min;
+            }
             if hist_enabled() {
-                for (vp,vv) in &v.points {
+                for (vp, vv) in &v.points {
                     let p = counter.points.entry(*vp).or_default();
                     *p += vv;
                 }
@@ -313,27 +326,27 @@ impl AddAssign<&Stat> for Stat {
 impl Stat {
     pub fn save_histograms(&self, _path: &str) -> Result<()> {
         if hist_enabled() {
-            for (k,v) in &self.custom {
-                use std::fs::File;
+            for (k, v) in &self.custom {
                 use prelude::*;
+                use std::fs::File;
 
                 let mut f = File::create(format!("{}/{}_hist.csv", _path, k))?;
                 f.write(b"lat,freq\n")?;
 
                 let mut pairs = vec![];
-                for (tm,fr) in &v.points {
-                    pairs.push((tm,fr));
+                for (tm, fr) in &v.points {
+                    pairs.push((tm, fr));
                 }
                 pairs.sort_by(|x, y| x.cmp(&y));
 
-                for (tm,fr) in &pairs {
+                for (tm, fr) in &pairs {
                     f.write(format!("{},{}\n", tm, fr).to_string().as_bytes())?;
                 }
 
                 if points_enabled() {
                     let mut f = File::create(format!("{}/{}_points.csv", _path, k))?;
                     f.write(format!("{}\n", k).to_string().as_bytes())?;
-                    for (tm,fr) in &pairs {
+                    for (tm, fr) in &pairs {
                         for _ in 0..**fr {
                             f.write(format!("{}\n", tm).to_string().as_bytes())?;
                         }
@@ -355,10 +368,11 @@ fn div(a: u64, b: u64) -> f64 {
 
 impl Display for Stat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        #[cfg(feature = "stat_perf")] {
+        #[cfg(feature = "stat_perf")]
+        {
             writeln!(
                 f,
-"Sync          {:>14} us    avg(ns): {:<8}    cnt: {}
+                "Sync          {:>14} us    avg(ns): {:<8}    cnt: {}
 Alloc         {:>14} ns    avg(ns): {:<8}    cnt: {}
 Dealloc       {:>14} ns    avg(ns): {:<8}    cnt: {}
 AdrTrans      {:>14} ns    avg(ns): {:<8}    cnt: {}
@@ -412,11 +426,11 @@ Logging       {:>14} ns    avg(ns): {:<8}    cnt: {}",
                 self.cnt_logging
             )?;
         }
-        let mut lns = vec!();
+        let mut lns = vec![];
 
-        for (k,v) in &self.custom {
+        for (k, v) in &self.custom {
             let avg = div(v.sum, v.cnt);
-            let sd = f64::sqrt(v.sum2/(v.cnt as f64)-f64::powi(avg,2));
+            let sd = f64::sqrt(v.sum2 / (v.cnt as f64) - f64::powi(avg, 2));
             lns.push(format!("{:<15}{:>10} ns  avg(ns): {:<11.3} std(ns): {:<8.1} min(ns): {:<8} max(ns): {:<10} cnt: {}",
                 k, v.sum, avg, sd,
                 v.min, v.max, v.cnt));
@@ -428,9 +442,9 @@ Logging       {:>14} ns    avg(ns): {:<8}    cnt: {}",
         }
 
         if hist_enabled() {
-            let mut _plots = vec!();
-            for (k,v) in &self.custom {
-                if let Some((plt,min,max,vmax,avg)) = plot(&v.points, 1.0, 10) {
+            let mut _plots = vec![];
+            for (k, v) in &self.custom {
+                if let Some((plt, min, max, vmax, avg)) = plot(&v.points, 1.0, 10) {
                     let mut plot = format!("┌{:─^80}┐{}\n", format!(" {} ", k), vmax);
                     for ln in plt {
                         plot += &format!("│{}│\n", ln);
@@ -441,7 +455,7 @@ Logging       {:>14} ns    avg(ns): {:<8}    cnt: {}",
                 }
             }
 
-            _plots.sort_by(|x, y| x.replace('─',"").cmp(&y.replace('─',"")));
+            _plots.sort_by(|x, y| x.replace('─', "").cmp(&y.replace('─', "")));
             for pl in &_plots {
                 writeln!(f, "{}", pl)?;
             }
@@ -463,7 +477,8 @@ pub fn report() -> String {
         if print_all_threads {
             res += &format!(
                 "\n{:-^113}\n{}",
-                format!(" Performance Details {:?} ", tid), stat
+                format!(" Performance Details {:?} ", tid),
+                stat
             );
         }
         total += stat;
@@ -491,8 +506,16 @@ pub fn save_histograms(_path: &'static str) -> Result<()> {
     }
 }
 
-fn plot(data: &HashMap<u64, u64>, x: f32, freq_thr: u64) -> Option<(Vec<String>,i64,i64,i64,i64)> {
-    let mut res = vec!["                                                                                ".to_string(); 20];
+fn plot(
+    data: &HashMap<u64, u64>,
+    x: f32,
+    freq_thr: u64,
+) -> Option<(Vec<String>, i64, i64, i64, i64)> {
+    let mut res = vec![
+            "                                                                                "
+                .to_string();
+            20
+        ];
     let mut freqs = vec![0; 80];
     let h_min = data.keys().min()?;
     let h_max = data.keys().max()?;
@@ -502,7 +525,7 @@ fn plot(data: &HashMap<u64, u64>, x: f32, freq_thr: u64) -> Option<(Vec<String>,
     } else {
         let mut sum = 0;
         let mut cnt = 0;
-        for (t,freq) in data {
+        for (t, freq) in data {
             if *freq > freq_thr {
                 sum += freq * *t;
                 cnt += freq;
@@ -511,7 +534,7 @@ fn plot(data: &HashMap<u64, u64>, x: f32, freq_thr: u64) -> Option<(Vec<String>,
         if cnt > 0 {
             let avg = (sum / cnt) as i64;
 
-            for (t,freq) in data {
+            for (t, freq) in data {
                 let t = (*t as i64) - avg;
 
                 let t = (x * (t as f32 * 40.0) / avg as f32) as i64;
@@ -524,14 +547,18 @@ fn plot(data: &HashMap<u64, u64>, x: f32, freq_thr: u64) -> Option<(Vec<String>,
                 let f = (freqs[i] * 19) / v_max;
                 let f = 19.min(f as usize);
                 for j in 0..f {
-                    unsafe { res[19-j].as_bytes_mut()[i] = b'X'; }
+                    unsafe {
+                        res[19 - j].as_bytes_mut()[i] = b'X';
+                    }
                 }
             }
-            Some((res,
+            Some((
+                res,
                 ((1.0 - x) * avg as f32) as i64,
                 ((1.0 + x) * avg as f32) as i64,
                 *v_max as i64,
-                avg))
+                avg,
+            ))
         } else {
             None
         }
@@ -540,40 +567,36 @@ fn plot(data: &HashMap<u64, u64>, x: f32, freq_thr: u64) -> Option<(Vec<String>,
 
 #[macro_export]
 macro_rules! measure {
-    ($tag:expr,$n:expr,$f:block) => {
+    ($tag:expr,$n:expr,$f:block) => {{
+        let __tag = $tag;
         {
-            let __tag = $tag;
-            {
-                #[allow(unused_import)]
-                use std::time::Instant;
+            #[allow(unused_import)]
+            use std::time::Instant;
 
-                let mut _perf = Measure::<P>::Batch(Instant::now(), __tag, $n as u64);
-                let mut _dummy = Instant::now();
-                let mut _rt = &mut _dummy;
-                if let Measure::<P>::Batch(t, _, _) = &mut _perf {
-                    _rt = t;
-                }
-                *_rt = Instant::now();
-                $f
+            let mut _perf = Measure::<P>::Batch(Instant::now(), __tag, $n as u64);
+            let mut _dummy = Instant::now();
+            let mut _rt = &mut _dummy;
+            if let Measure::<P>::Batch(t, _, _) = &mut _perf {
+                _rt = t;
             }
+            *_rt = Instant::now();
+            $f
         }
-    };
-    ($tag:expr,$f:block) => {
+    }};
+    ($tag:expr,$f:block) => {{
+        let __tag = $tag;
         {
-            let __tag = $tag;
-            {
-                #[allow(unused_import)]
-                use std::time::Instant;
+            #[allow(unused_import)]
+            use std::time::Instant;
 
-                let mut _perf = Measure::<P>::Custom(Instant::now(), __tag);
-                let mut _dummy = Instant::now();
-                let mut _rt = &mut _dummy;
-                if let Measure::<P>::Custom(t, _) = &mut _perf {
-                    _rt = t;
-                }
-                *_rt = Instant::now();
-                $f
+            let mut _perf = Measure::<P>::Custom(Instant::now(), __tag);
+            let mut _dummy = Instant::now();
+            let mut _rt = &mut _dummy;
+            if let Measure::<P>::Custom(t, _) = &mut _perf {
+                _rt = t;
             }
+            *_rt = Instant::now();
+            $f
         }
-    };
+    }};
 }

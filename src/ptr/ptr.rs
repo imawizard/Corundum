@@ -123,11 +123,7 @@ impl<A: MemPool, T: ?Sized> Ptr<T, A> {
         let dst = A::alloc_for_value(src);
         let trg = A::off_unchecked(dst);
         let len = std::alloc::Layout::for_value(src).size();
-        std::ptr::copy_nonoverlapping(
-            src as *const T as *const u8,
-            dst as *mut T as *mut u8,
-            len,
-        );
+        std::ptr::copy_nonoverlapping(src as *const T as *const u8, dst as *mut T as *mut u8, len);
         Ptr::from_off_unchecked(trg)
     }
 
@@ -205,7 +201,11 @@ impl<A: MemPool, T: ?Sized> Ptr<T, A> {
         if self.is_dangling() {
             None
         } else {
-            debug_assert!(A::allocated(self.off(), 1), "Access Violation at address 0x{:x}", self.off());
+            debug_assert!(
+                A::allocated(self.off(), 1),
+                "Access Violation at address 0x{:x}",
+                self.off()
+            );
             Some(self)
         }
     }

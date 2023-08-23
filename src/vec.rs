@@ -1,9 +1,9 @@
 //! A contiguous growable array type with heap-allocated contents, written Vec<T>
 
-use crate::convert::PFrom;
 use crate::alloc::get_idx;
 use crate::alloc::MemPool;
 use crate::clone::PClone;
+use crate::convert::PFrom;
 use crate::ptr::*;
 use crate::stm::*;
 use crate::*;
@@ -206,10 +206,10 @@ impl<T: PSafe, A: MemPool> Vec<T, A> {
     pub unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
         let off = A::off_unchecked(ptr);
         Self {
-            buf: Slice::<T,A>::from_off_cap(off, capacity),
+            buf: Slice::<T, A>::from_off_cap(off, capacity),
             len: length,
             has_log: 0,
-            marker: PhantomData
+            marker: PhantomData,
         }
     }
 
@@ -810,7 +810,7 @@ impl<T: PSafe, A: MemPool> Vec<T, A> {
     // /// ```
     // /// # use corundum::vec::Vec;
     // /// # use corundum::alloc::heap::*;
-/// Heap::transaction(|j| {
+    /// Heap::transaction(|j| {
     // ///     let mut vec = Vec::from_slice(&[10, 20, 21, 30, 20], j);
     // ///
     // ///     vec.dedup_by_key(|i| *i / 10);
@@ -842,7 +842,7 @@ impl<T: PSafe, A: MemPool> Vec<T, A> {
     // /// # use corundum::vec::Vec;
     // /// # use corundum::str::*;
     // /// # use corundum::alloc::heap::*;
-/// Heap::transaction(|j| {
+    /// Heap::transaction(|j| {
     // ///     let mut vec = Vec::from_slice(&["foo", "bar", "Bar", "baz", "bar"], j);
     // ///
     // ///     vec.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
@@ -1285,9 +1285,9 @@ impl<A: MemPool> Vec<u8, A> {
 
 #[cfg(test)]
 mod test {
-    use crate::RootObj;
     use crate::default::*;
     use crate::open_flags::*;
+    use crate::RootObj;
 
     type A = Allocator;
 

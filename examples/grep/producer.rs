@@ -1,8 +1,8 @@
 use crate::stack::Stack;
 use corundum::default::*;
 use corundum::stm::Journal;
-use corundum::vec::Vec;
 use corundum::sync::VWeak;
+use corundum::vec::Vec;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::string::String as StdStr;

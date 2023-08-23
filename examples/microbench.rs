@@ -1,10 +1,10 @@
 #[cfg(target_arch = "x86_64")]
 mod run {
 
+    use corundum::default::{Journal, *};
     use corundum::measure;
-    use corundum::default::{*, Journal};
-    use corundum::stat::*;
     use corundum::open_flags::*;
+    use corundum::stat::*;
     use corundum::stm::{Log, Logger, Notifier};
 
     type P = Allocator;
@@ -15,7 +15,7 @@ mod run {
             P::transaction(|j| unsafe {
                 let mut bvec = Vec::with_capacity($cnt);
                 for _ in 0..$cnt {
-                    bvec.push(Pbox::new([0u8;$s], j));
+                    bvec.push(Pbox::new([0u8; $s], j));
                 }
                 for i in 0..$cnt {
                     let m = &*bvec[i];
@@ -24,7 +24,8 @@ mod run {
                     });
                 }
                 j.ignore();
-            }).unwrap();
+            })
+            .unwrap();
         };
     }
 
@@ -74,11 +75,16 @@ mod run {
         for _ in 0..cnt {
             // Warm-up the allocator
             let s = 8 + rand::random::<usize>() % 5000;
-            unsafe { P::alloc(s); }
+            unsafe {
+                P::alloc(s);
+            }
         }
         for _ in 0..cnt {
             measure!("TxNop".to_string(), {
-                P::transaction(|_| {unsafe { asm!("nop"); }}).unwrap();
+                P::transaction(|_| unsafe {
+                    asm!("nop");
+                })
+                .unwrap();
             });
         }
 
@@ -87,12 +93,14 @@ mod run {
             let mut vec = Vec::with_capacity(cnt);
             for _ in 0..cnt {
                 vec.push(measure!(format!("Alloc({})", s), {
-                    unsafe{ P::alloc(s) }
+                    unsafe { P::alloc(s) }
                 }));
             }
             for i in 0..cnt {
                 measure!(format!("Dealloc({})", s), {
-                    unsafe{ P::dealloc(vec[i].0, s); }
+                    unsafe {
+                        P::dealloc(vec[i].0, s);
+                    }
                 });
             }
         }
@@ -101,27 +109,21 @@ mod run {
             let b = &*root.bx.borrow();
             for i in 0..cnt {
                 let b = &b[i];
-                measure!("Pbox:AtomicInit".to_string(), {
-                    Pbox::initialize(b, 10)
-                }).unwrap();
+                measure!("Pbox:AtomicInit".to_string(), { Pbox::initialize(b, 10) }).unwrap();
             }
             let r = &*root.rc.borrow();
             for i in 0..cnt {
                 let r = &r[i];
-                measure!("Prc:AtomicInit".to_string(), {
-                    Prc::initialize(r, 10)
-                }).unwrap();
+                measure!("Prc:AtomicInit".to_string(), { Prc::initialize(r, 10) }).unwrap();
             }
             let a = &*root.arc.borrow();
             for i in 0..cnt {
                 let a = &a[i];
-                measure!("Parc:AtomicInit".to_string(), {
-                    Parc::initialize(a, 10)
-                }).unwrap();
+                measure!("Parc:AtomicInit".to_string(), { Parc::initialize(a, 10) }).unwrap();
             }
         }
 
-        for _ in 0 .. CNT/50 {
+        for _ in 0..CNT / 50 {
             let cnt = 50;
             P::transaction(|j| {
                 let mut bvec = Vec::with_capacity(cnt);
@@ -137,7 +139,8 @@ mod run {
                         *pvec[i] = 20;
                     });
                 }
-            }).unwrap();
+            })
+            .unwrap();
             P::transaction(|j| {
                 let b = Pbox::new(10, j);
                 let mut v = 0;
@@ -149,7 +152,8 @@ mod run {
                 if v < 0 {
                     println!("unreachable {}", v);
                 }
-            }).unwrap();
+            })
+            .unwrap();
             P::transaction(|j| {
                 let b = Pbox::new(Pbox::new(10, j), j);
                 let mut b = &**b;
@@ -162,7 +166,8 @@ mod run {
                 if **m < 0 {
                     println!("unreachable {}", m);
                 }
-            }).unwrap();
+            })
+            .unwrap();
 
             datalog!(cnt, 8);
             datalog!(cnt, 64);
@@ -186,18 +191,18 @@ mod run {
                             Log::drop_on_commit(off, len, j);
                         });
                     }
-                }).unwrap();
+                })
+                .unwrap();
             }
 
             P::transaction(|j| {
                 let b = Pbox::new(0u64, j);
                 let mut vec = Vec::with_capacity(cnt);
                 for _ in 0..cnt {
-                    vec.push(measure!("Pbox:clone".to_string(), {
-                        b.pclone(j)
-                    }));
+                    vec.push(measure!("Pbox:clone".to_string(), { b.pclone(j) }));
                 }
-            }).unwrap();
+            })
+            .unwrap();
 
             P::transaction(|j| {
                 let b = Prc::new(0u64, j);
@@ -207,7 +212,8 @@ mod run {
                         vec.push(b.pclone(j));
                     }
                 });
-            }).unwrap();
+            })
+            .unwrap();
 
             P::transaction(|j| {
                 let b = Parc::new(0u64, j);
@@ -215,33 +221,40 @@ mod run {
                 for _ in 0..cnt {
                     vec.push(measure!("Parc:clone".to_string(), { b.pclone(j) }));
                 }
-            }).unwrap();
+            })
+            .unwrap();
 
             P::transaction(|j| {
                 let b = Parc::new(0u64, j);
                 let mut pvec = Vec::<parc::PWeak<u64>>::with_capacity(cnt);
                 for _ in 0..cnt {
-                    pvec.push(measure!("Parc:downgrade".to_string(), { Parc::downgrade(&b, j) }));
+                    pvec.push(measure!("Parc:downgrade".to_string(), {
+                        Parc::downgrade(&b, j)
+                    }));
                 }
                 let mut ppvec = Vec::with_capacity(cnt);
                 for i in 0..cnt {
                     ppvec.push(measure!("Parc:upgrade".to_string(), { pvec[i].upgrade(j) }))
                 }
-            }).unwrap();
+            })
+            .unwrap();
 
             P::transaction(|j| {
                 let b = Parc::new(0u64, j);
                 let mut vvec = Vec::with_capacity(cnt);
                 unsafe {
                     for _ in 0..cnt {
-                        vvec.push(measure!("Parc:demote".to_string(), { Parc::unsafe_demote(&b) }));
+                        vvec.push(measure!("Parc:demote".to_string(), {
+                            Parc::unsafe_demote(&b)
+                        }));
                     }
                 }
                 let mut pvec = Vec::with_capacity(cnt);
                 for i in 0..cnt {
                     pvec.push(measure!("Parc:promote".to_string(), { vvec[i].promote(j) }));
                 }
-            }).unwrap();
+            })
+            .unwrap();
         }
 
         P::transaction(|j| {
@@ -258,7 +271,8 @@ mod run {
                     bvec.push(pvec[i].upgrade(j))
                 }
             });
-        }).unwrap();
+        })
+        .unwrap();
 
         P::transaction(|j| {
             let b = Prc::new(0u64, j);
@@ -276,13 +290,16 @@ mod run {
                     bvec.push(vvec[i].promote(j));
                 }
             });
-        }).unwrap();
+        })
+        .unwrap();
 
         for s in &sizes {
             let layout = std::alloc::Layout::from_size_align(*s * 8, 4).unwrap();
             measure!(format!("malloc({})", *s * 8), cnt, {
                 for _ in 0..cnt {
-                    unsafe{ std::alloc::alloc(layout); }
+                    unsafe {
+                        std::alloc::alloc(layout);
+                    }
                 }
             });
         }
@@ -304,7 +321,9 @@ mod run {
         }
         measure!(" for".to_string(), cnt, {
             for _ in 0..cnt {
-                unsafe { asm!("nop"); }
+                unsafe {
+                    asm!("nop");
+                }
             }
         });
         if m == cnt as u128 + 1 {
@@ -313,12 +332,14 @@ mod run {
 
         for _ in 0..cnt {
             measure!(" nop".to_string(), {
-                unsafe { asm!("nop"); }
+                unsafe {
+                    asm!("nop");
+                }
             });
         }
 
         println!("{}", report());
-        let _=save_histograms("hist");
+        let _ = save_histograms("hist");
     }
 }
 

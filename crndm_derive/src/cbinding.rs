@@ -1,22 +1,22 @@
 use proc_macro::TokenStream;
-use syn::parse::Parser;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{quote, quote_spanned, format_ident};
-use syn::spanned::Spanned;
-use syn::*;
-use syn::punctuated::Punctuated;
+use quote::{format_ident, quote, quote_spanned};
+use regex::Regex;
 use std::collections::HashMap;
+use std::fs::{create_dir_all, read_to_string, File};
+use std::io::*;
 use std::sync::LazyLock;
 use std::sync::Mutex;
-use std::io::*;
-use std::fs::{File,create_dir_all,read_to_string};
-use regex::Regex;
+use syn::parse::Parser;
+use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
+use syn::*;
 
 type TypeName = String;
 type PoolName = String;
 type FuncName = String;
-type FuncSig  = String;
-type Template  = Vec<String>;
+type FuncSig = String;
+type Template = Vec<String>;
 type FuncArgs = Vec<(bool /* is generic */, String)>;
 
 #[derive(Default)]
@@ -25,24 +25,32 @@ pub struct Contents {
     decl: String,
     alias: String,
     traits: HashMap<PoolName, String>,
-    funcs: Vec<(FuncName, FuncArgs, FuncSig, Template, TypeName, bool, bool, bool, bool)>,
+    funcs: Vec<(
+        FuncName,
+        FuncArgs,
+        FuncSig,
+        Template,
+        TypeName,
+        bool,
+        bool,
+        bool,
+        bool,
+    )>,
     pools: std::collections::HashSet<String>,
     generics: Vec<String>,
-    attrs: Attributes
+    attrs: Attributes,
 }
 
 #[derive(Default)]
 pub struct Attributes {
-    concurrent: bool
+    concurrent: bool,
 }
 
-pub static mut TYPES: LazyLock<Mutex<HashMap<TypeName, Contents>>> = LazyLock::new(|| {
-    Mutex::new(HashMap::new())
-});
+pub static mut TYPES: LazyLock<Mutex<HashMap<TypeName, Contents>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
-pub static mut POOLS: LazyLock<Mutex<HashMap<TypeName, Contents>>> = LazyLock::new(|| {
-    Mutex::new(HashMap::new())
-});
+pub static mut POOLS: LazyLock<Mutex<HashMap<TypeName, Contents>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 fn check_type(ty: &Type, pool_type: &Ident, gen_idents: &Vec<Ident>, warn: bool) {
     match ty {
@@ -102,7 +110,7 @@ fn check_type(ty: &Type, pool_type: &Ident, gen_idents: &Vec<Ident>, warn: bool)
         Type::Paren(p) => check_type(p.elem.as_ref(), pool_type, gen_idents, warn),
         Type::Group(g) => check_type(g.elem.as_ref(), pool_type, gen_idents, warn),
         Type::Macro(m) => emit_error!(m.span(), "cannot evaluate macro type"),
-        _ => emit_error!(ty.span(), "cannot evaluate")
+        _ => emit_error!(ty.span(), "cannot evaluate"),
     }
 }
 
@@ -132,9 +140,9 @@ pub fn derive_cbindgen(input: TokenStream) -> TokenStream {
             )
         }
     });
-    let mut gen_idents = vec!();
+    let mut gen_idents = vec![];
     let mut found_pool_generic: Option<Ident> = None;
-    let mut ogen = vec!();
+    let mut ogen = vec![];
     if !input.generics.params.is_empty() {
         for t in &input.generics.params {
             if let GenericParam::Type(t) = t {
@@ -186,7 +194,8 @@ pub fn derive_cbindgen(input: TokenStream) -> TokenStream {
                                     }
                                     if let Type::Path(p) = &t.bounded_ty {
                                         if p.path.segments.len() == 1 {
-                                            found_pool_generic = Some(p.path.segments[0].ident.clone());
+                                            found_pool_generic =
+                                                Some(p.path.segments[0].ident.clone());
                                         }
                                     }
                                 }
@@ -249,10 +258,22 @@ pub fn derive_cbindgen(input: TokenStream) -> TokenStream {
     //     entry.pools.push(input.ident.to_string());
     // }
 
-    let generics: Vec<Ident> = gen_idents.iter().filter_map(|v| if *v == pool_type { None } else { Some(v.clone()) }).collect();
-    let mut generics_list = quote!{ template <#(class #generics,)*;>  }.to_string().replace(", ;", "")+" ";
-    let mut template = quote!{ template <#(class #generics,)* class _P> }.to_string();
-    let mut generics_str = quote!{ #(#generics,)* }.to_string();
+    let generics: Vec<Ident> = gen_idents
+        .iter()
+        .filter_map(|v| {
+            if *v == pool_type {
+                None
+            } else {
+                Some(v.clone())
+            }
+        })
+        .collect();
+    let mut generics_list = quote! { template <#(class #generics,)*;>  }
+        .to_string()
+        .replace(", ;", "")
+        + " ";
+    let mut template = quote! { template <#(class #generics,)* class _P> }.to_string();
+    let mut generics_str = quote! { #(#generics,)* }.to_string();
 
     if generics.is_empty() {
         if warn_no_generics {
@@ -276,23 +297,36 @@ pub fn derive_cbindgen(input: TokenStream) -> TokenStream {
 
     let mut expanded = vec![];
     let mut includes = "".to_owned();
-    let mut all_types = unsafe { match TYPES.lock() {
-        Ok(g) => g,
-        Err(p) => p.into_inner()
-    } };
-    let entry = all_types.entry(name_str.clone()).or_insert(Contents::default());
+    let mut all_types = unsafe {
+        match TYPES.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        }
+    };
+    let entry = all_types
+        .entry(name_str.clone())
+        .or_insert(Contents::default());
     entry.generics = generics.iter().map(|v| v.to_string()).collect();
-    let new_sizes: Vec<Ident>  = generics.iter().map(|v| format_ident!("{}_size", v.to_string())).collect();
+    let new_sizes: Vec<Ident> = generics
+        .iter()
+        .map(|v| format_ident!("{}_size", v.to_string()))
+        .collect();
 
     let size_list: Vec<String> = new_sizes.iter().map(|v| v.to_string()).collect();
     let mut size_list = size_list.join(", ");
-    if !new_sizes.is_empty() { size_list += ", "; }
+    if !new_sizes.is_empty() {
+        size_list += ", ";
+    }
     let size_list_arg: Vec<String> = new_sizes.iter().map(|v| format!("size_t {}", v)).collect();
     let mut size_list_arg = size_list_arg.join(", ");
-    if !new_sizes.is_empty() { size_list_arg += ", "; }
+    if !new_sizes.is_empty() {
+        size_list_arg += ", ";
+    }
     let sizeof_list: Vec<String> = generics.iter().map(|v| format!("sizeof({})", v)).collect();
     let mut sizeof_list = sizeof_list.join(", ");
-    if !new_sizes.is_empty() { sizeof_list += ", "; }
+    if !new_sizes.is_empty() {
+        sizeof_list += ", ";
+    }
 
     let mut conc_decl = "";
     let mut lock = "";
@@ -315,14 +349,18 @@ pub fn derive_cbindgen(input: TokenStream) -> TokenStream {
     }
 
     for m in &mods {
-
         // // Generate an expression to sum up the heap size of each field.
         // let sum = root_all_fields(&name, &input.data);
 
         let pool = m.to_string();
         let __m = format_ident!("__{}_root_t", pool);
         let __mod = format_ident!("__{}", pool);
-        let mod_demangled = pool.replace("::", "_").replace("<", "_").replace(">", "_").replace(" ", "").to_lowercase();
+        let mod_demangled = pool
+            .replace("::", "_")
+            .replace("<", "_")
+            .replace(">", "_")
+            .replace(" ", "")
+            .to_lowercase();
         let name_str = format!("__{}_{}", mod_demangled, name_str.to_lowercase());
         let fn_new = format_ident!("{}_new", name_str);
         let fn_drop = format_ident!("{}_drop", name_str);
@@ -390,7 +428,10 @@ pub fn derive_cbindgen(input: TokenStream) -> TokenStream {
         includes += &format!("\n#include \"{pool}.hpp\"", pool = pool);
 
         entry.pools.insert(pool.clone());
-        entry.traits.insert(pool.clone(), format!("
+        entry.traits.insert(
+            pool.clone(),
+            format!(
+                "
 template<>
 struct {small_name}_traits<{pool}> {{
     typedef typename pool_traits<{pool}>::journal journal;
@@ -405,16 +446,17 @@ struct {small_name}_traits<{pool}> {{
     }}
     // specialized methods
 }};\n",
-small_name = small_name,
-name = new_name,
-pool = pool,
-size_list = size_list,
-size_list_arg = size_list_arg,
-fn_new = fn_new.to_string(),
-fn_open = fn_open.to_string(),
-fn_drop = fn_drop.to_string(),
-root_name = __m.to_string()
-        ));
+                small_name = small_name,
+                name = new_name,
+                pool = pool,
+                size_list = size_list,
+                size_list_arg = size_list_arg,
+                fn_new = fn_new.to_string(),
+                fn_open = fn_open.to_string(),
+                fn_drop = fn_drop.to_string(),
+                root_name = __m.to_string()
+            ),
+        );
     }
 
     entry.contents = format!(
@@ -534,17 +576,24 @@ lock = lock,
 guard_fn = guard_fn,
 other_lock = other_lock
 );
-    entry.decl = format!("{template} class {name};",
-            name = name,
-            template = template
-        );
-    entry.alias = format!("{generics_list}using {name} = {name}<{generics}{{pool}}>;",
-            name = name,
-            generics = generics_str,
-            generics_list = generics_list
-        );
+    entry.decl = format!("{template} class {name};", name = name, template = template);
+    entry.alias = format!(
+        "{generics_list}using {name} = {name}<{generics}{{pool}}>;",
+        name = name,
+        generics = generics_str,
+        generics_list = generics_list
+    );
 
-    let gen: Vec<TokenStream2> = gen_idents.iter().map(|v| if *v == pool_type { quote!(P) } else { quote!(corundum::c_void) } ).collect();
+    let gen: Vec<TokenStream2> = gen_idents
+        .iter()
+        .map(|v| {
+            if *v == pool_type {
+                quote!(P)
+            } else {
+                quote!(corundum::c_void)
+            }
+        })
+        .collect();
     let expanded = quote! {
         pub type #new_name<P: corundum::MemPool> = #name<#(#gen,)*>;
         #(#expanded)*
@@ -554,35 +603,111 @@ other_lock = other_lock
     TokenStream::from(expanded)
 }
 
-fn refine_path(m: &TokenStream2, p: &mut Path, tmpl: &Vec<String>, ty_tmpl: &Ident, gen: &Vec<String>, check: i32, modify: bool, has_generics: &mut Option<&mut bool>, ident: &Ident) {
+fn refine_path(
+    m: &TokenStream2,
+    p: &mut Path,
+    tmpl: &Vec<String>,
+    ty_tmpl: &Ident,
+    gen: &Vec<String>,
+    check: i32,
+    modify: bool,
+    has_generics: &mut Option<&mut bool>,
+    ident: &Ident,
+) {
     for s in &mut p.segments {
         match &mut s.arguments {
             PathArguments::AngleBracketed(args) => {
                 for g in &mut args.args {
                     match g {
-                        GenericArgument::Type(ty) => { check_generics(m, ty, &tmpl, ty_tmpl, gen, if s.ident != "Gen" && check == 1 { 1 } else { 0 }, modify, has_generics, ident); }
-                        GenericArgument::Binding(b) => { check_generics(m, &mut b.ty, &tmpl, ty_tmpl, gen, check, modify, has_generics, ident); }
-                        _ => ()
+                        GenericArgument::Type(ty) => {
+                            check_generics(
+                                m,
+                                ty,
+                                &tmpl,
+                                ty_tmpl,
+                                gen,
+                                if s.ident != "Gen" && check == 1 { 1 } else { 0 },
+                                modify,
+                                has_generics,
+                                ident,
+                            );
+                        }
+                        GenericArgument::Binding(b) => {
+                            check_generics(
+                                m,
+                                &mut b.ty,
+                                &tmpl,
+                                ty_tmpl,
+                                gen,
+                                check,
+                                modify,
+                                has_generics,
+                                ident,
+                            );
+                        }
+                        _ => (),
                     }
                 }
             }
             PathArguments::Parenthesized(args) => {
-                for i in &mut args.inputs { check_generics(m, i, tmpl, ty_tmpl, gen, check, modify, has_generics, ident); }
+                for i in &mut args.inputs {
+                    check_generics(m, i, tmpl, ty_tmpl, gen, check, modify, has_generics, ident);
+                }
                 if let ReturnType::Type(_, ty) = &mut args.output {
-                    check_generics(m, ty, tmpl, ty_tmpl, gen, check, modify, has_generics, ident);
+                    check_generics(
+                        m,
+                        ty,
+                        tmpl,
+                        ty_tmpl,
+                        gen,
+                        check,
+                        modify,
+                        has_generics,
+                        ident,
+                    );
                 }
             }
-            _ => ()
+            _ => (),
         }
     }
 }
 
-fn check_generics(m: &TokenStream2, ty: &mut Type, tmpl: &Vec<String>, ty_tmpl: &Ident, gen: &Vec<String>, check: i32, modify: bool, has_generics: &mut Option<&mut bool>, ident: &Ident) -> bool {
+fn check_generics(
+    m: &TokenStream2,
+    ty: &mut Type,
+    tmpl: &Vec<String>,
+    ty_tmpl: &Ident,
+    gen: &Vec<String>,
+    check: i32,
+    modify: bool,
+    has_generics: &mut Option<&mut bool>,
+    ident: &Ident,
+) -> bool {
     let res = match ty {
-        Type::Array(a) => check_generics(m, &mut *a.elem, tmpl, ty_tmpl, gen, check, modify, has_generics, ident),
+        Type::Array(a) => check_generics(
+            m,
+            &mut *a.elem,
+            tmpl,
+            ty_tmpl,
+            gen,
+            check,
+            modify,
+            has_generics,
+            ident,
+        ),
         Type::BareFn(f) => {
             for i in &mut f.inputs {
-                if check_generics(m, &mut i.ty, tmpl, ty_tmpl, gen, 2, modify, has_generics, &format_ident!("j")) {
+                if check_generics(
+                    m,
+                    &mut i.ty,
+                    tmpl,
+                    ty_tmpl,
+                    gen,
+                    2,
+                    modify,
+                    has_generics,
+                    &format_ident!("j"),
+                ) {
                     abort!(
                         i.ty.span(), "no bindings found for template parameters";
                         note = "use template types in form of references or pointers"
@@ -593,9 +718,29 @@ fn check_generics(m: &TokenStream2, ty: &mut Type, tmpl: &Vec<String>, ty_tmpl: 
                 check_generics(m, ty, tmpl, ty_tmpl, gen, 2, modify, has_generics, ident);
             }
             false
-        },
-        Type::Group(g) => check_generics(m, &mut *g.elem, tmpl, ty_tmpl, gen, check, modify, has_generics, ident),
-        Type::Paren(ty) => check_generics(m, &mut *ty.elem, tmpl, ty_tmpl, gen, check, modify, has_generics, ident),
+        }
+        Type::Group(g) => check_generics(
+            m,
+            &mut *g.elem,
+            tmpl,
+            ty_tmpl,
+            gen,
+            check,
+            modify,
+            has_generics,
+            ident,
+        ),
+        Type::Paren(ty) => check_generics(
+            m,
+            &mut *ty.elem,
+            tmpl,
+            ty_tmpl,
+            gen,
+            check,
+            modify,
+            has_generics,
+            ident,
+        ),
         Type::Path(p) => {
             // if let Some(last) = p.path.segments.last() {
             //     if last.ident == "Box" {
@@ -611,7 +756,7 @@ fn check_generics(m: &TokenStream2, ty: &mut Type, tmpl: &Vec<String>, ty_tmpl: 
                     let args = &last.arguments;
                     let j = quote!(Journal #args);
                     if j.to_string() != quote!(Journal<#ty_tmpl>).to_string() {
-                        abort!{
+                        abort! {
                             ty.span(), "invalid use of `Journal`";
                             help = "consider using `Journal<{}>`", ty_tmpl
                         }
@@ -644,17 +789,47 @@ fn check_generics(m: &TokenStream2, ty: &mut Type, tmpl: &Vec<String>, ty_tmpl: 
                         false
                     }
                 } else {
-                    refine_path(m, &mut p.path, tmpl, ty_tmpl, gen, check, modify, has_generics, ident);
+                    refine_path(
+                        m,
+                        &mut p.path,
+                        tmpl,
+                        ty_tmpl,
+                        gen,
+                        check,
+                        modify,
+                        has_generics,
+                        ident,
+                    );
                     false
                 }
             } else {
-                refine_path(m, &mut p.path, tmpl, ty_tmpl, gen, check, modify, has_generics, ident);
+                refine_path(
+                    m,
+                    &mut p.path,
+                    tmpl,
+                    ty_tmpl,
+                    gen,
+                    check,
+                    modify,
+                    has_generics,
+                    ident,
+                );
                 false
             }
         }
         // tmpl.contains(&p.path.get_ident().expect(&format!("{}", line!())).ident.to_string()),
         Type::Ptr(p) => {
-            if check_generics(m, &mut *p.elem, tmpl, ty_tmpl, gen, if check == 2 { 0 } else { check }, modify, has_generics, ident) {
+            if check_generics(
+                m,
+                &mut *p.elem,
+                tmpl,
+                ty_tmpl,
+                gen,
+                if check == 2 { 0 } else { check },
+                modify,
+                has_generics,
+                ident,
+            ) {
                 // update(ty);
                 // *ty = parse2(quote!(corundum::gen::Gen)).expect(&format!("{}", line!()));
                 // if modify {
@@ -663,9 +838,19 @@ fn check_generics(m: &TokenStream2, ty: &mut Type, tmpl: &Vec<String>, ty_tmpl: 
                 // }
             }
             false
-        },
-        Type::Reference(r) =>  {
-            if check_generics(m, &mut *r.elem, tmpl, ty_tmpl, gen, if check == 2 { 0 } else { check }, modify, has_generics, ident) {
+        }
+        Type::Reference(r) => {
+            if check_generics(
+                m,
+                &mut *r.elem,
+                tmpl,
+                ty_tmpl,
+                gen,
+                if check == 2 { 0 } else { check },
+                modify,
+                has_generics,
+                ident,
+            ) {
                 // update(ty);
                 // *ty = parse2(quote!(corundum::gen::Gen)).expect(&format!("{}", line!()));
                 // if modify {
@@ -674,9 +859,22 @@ fn check_generics(m: &TokenStream2, ty: &mut Type, tmpl: &Vec<String>, ty_tmpl: 
                 // }
             }
             false
-        },
-        Type::Slice(s) => check_generics(m, &mut *s.elem, tmpl, ty_tmpl, gen, check, modify, has_generics, ident),
-        Type::Tuple(t) => t.elems.iter_mut().any(|t| check_generics(m, t, tmpl, ty_tmpl, gen, check, modify, has_generics, ident)),
+        }
+        Type::Slice(s) => check_generics(
+            m,
+            &mut *s.elem,
+            tmpl,
+            ty_tmpl,
+            gen,
+            check,
+            modify,
+            has_generics,
+            ident,
+        ),
+        Type::Tuple(t) => t
+            .elems
+            .iter_mut()
+            .any(|t| check_generics(m, t, tmpl, ty_tmpl, gen, check, modify, has_generics, ident)),
         Type::Verbatim(v) => {
             let name = v.to_string();
             if tmpl.contains(&name) {
@@ -695,8 +893,8 @@ fn check_generics(m: &TokenStream2, ty: &mut Type, tmpl: &Vec<String>, ty_tmpl: 
             } else {
                 false
             }
-        },
-        _ => false
+        }
+        _ => false,
     };
     if res && check == 1 {
         abort!(
@@ -711,17 +909,22 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut expanded = vec![];
     let extern_mod;
     if let Ok(imp) = parse2::<ItemImpl>(item.clone().into()) {
-        extern_mod = format_ident!("__extern_mod_{}_{}", imp.span().start().line, imp.span().start().column);
+        extern_mod = format_ident!(
+            "__extern_mod_{}_{}",
+            imp.span().start().line,
+            imp.span().start().column
+        );
         let mut generics = vec![];
         if let Type::Path(ref tp) = *imp.self_ty {
             let mut pool_type = None;
-            imp.generics.params.iter().for_each(|t|
+            imp.generics.params.iter().for_each(|t| {
                 if let GenericParam::Type(t) = t {
                     if t.ident == "_P" {
                         emit_error!(t.ident.span(), "`_P` is reserved");
                     }
                     generics.push(t.ident.clone());
-                    if t.bounds.iter().any(|b| if let TypeParamBound::Trait(t) = b {
+                    if t.bounds.iter().any(|b| {
+                        if let TypeParamBound::Trait(t) = b {
                             if let Some(ident) = t.path.get_ident() {
                                 ident == "MemPool"
                             } else {
@@ -730,7 +933,7 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         } else {
                             false
                         }
-                    ) {
+                    }) {
                         pool_type = Some(t.ident.clone());
                     } else {
                         if let Some(w) = &imp.generics.where_clause {
@@ -741,7 +944,8 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                                             if let Some(ident) = tr.path.get_ident() {
                                                 if ident == "MemPool" {
                                                     if let Type::Path(p) = &t.bounded_ty {
-                                                        pool_type = p.path.get_ident().map(|v| v.clone());
+                                                        pool_type =
+                                                            p.path.get_ident().map(|v| v.clone());
                                                     }
                                                 }
                                             }
@@ -752,10 +956,13 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         }
                     }
                 }
-            );
+            });
 
             if pool_type.is_none() {
-                emit_error!(imp.generics.span(), "At least one parameter is needed that implements `MemPool`");
+                emit_error!(
+                    imp.generics.span(),
+                    "At least one parameter is needed that implements `MemPool`"
+                );
                 return item;
             }
             let pool_type = pool_type.expect(&format!("{}", line!()));
@@ -765,10 +972,12 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
             let new_name = format_ident!("__{}", name);
             let small_name = name.to_string().to_lowercase();
 
-            let mut types = unsafe { match TYPES.lock() {
-                Ok(g) => g,
-                Err(p) => p.into_inner()
-            }};
+            let mut types = unsafe {
+                match TYPES.lock() {
+                    Ok(g) => g,
+                    Err(p) => p.into_inner(),
+                }
+            };
 
             let entry = types.entry(name.to_string()).or_insert(Contents::default());
 
@@ -808,26 +1017,32 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     if let Visibility::Public(_) = &func.vis {
                         let mut spc = func.clone();
                         let mut inputs = Punctuated::<_, Token![,]>::new();
-                        let mut args = vec!();
+                        let mut args = vec![];
                         let mut is_constructor = false;
                         if let ReturnType::Type(_, ty) = &mut spc.sig.output {
                             if let Type::Path(s) = &**ty {
                                 if let Some(id) = s.path.get_ident() {
                                     if id == "Self" {
                                         is_constructor = true;
-                                        **ty = parse2(quote!(corundum::c_void)).expect(&format!("{}", line!()));
+                                        **ty = parse2(quote!(corundum::c_void))
+                                            .expect(&format!("{}", line!()));
                                     }
                                 }
                             }
                         }
-                        let mut gen: Template = spc.sig.generics.params.iter()
-                            .filter_map(|i|
+                        let mut gen: Template = spc
+                            .sig
+                            .generics
+                            .params
+                            .iter()
+                            .filter_map(|i| {
                                 if let GenericParam::Type(t) = i {
                                     Some(t.ident.to_string())
                                 } else {
                                     None
                                 }
-                            ).collect();
+                            })
+                            .collect();
                         for i in &generics {
                             if *i != pool_type {
                                 gen.push(i.to_string());
@@ -840,7 +1055,17 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                                     if let FnArg::Typed(PatType { pat, ty, .. }) = a {
                                         if let Pat::Ident(PatIdent { ident, .. }) = &**pat {
                                             let mut has_generics = false;
-                                            check_generics(&quote!(), &mut *ty, &gen, &pool_type, &entry.generics, 1, false, &mut Some(&mut has_generics), &ident);
+                                            check_generics(
+                                                &quote!(),
+                                                &mut *ty,
+                                                &gen,
+                                                &pool_type,
+                                                &entry.generics,
+                                                1,
+                                                false,
+                                                &mut Some(&mut has_generics),
+                                                &ident,
+                                            );
                                             args.push((has_generics, ident.to_string()));
                                         }
                                     }
@@ -853,7 +1078,17 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                                     if let FnArg::Typed(PatType { pat, ty, .. }) = a {
                                         if let Pat::Ident(PatIdent { ident, .. }) = &**pat {
                                             let mut has_generics = false;
-                                            check_generics(&quote!(), &mut *ty, &gen, &pool_type, &entry.generics, 1, false, &mut Some(&mut has_generics), &ident);
+                                            check_generics(
+                                                &quote!(),
+                                                &mut *ty,
+                                                &gen,
+                                                &pool_type,
+                                                &entry.generics,
+                                                1,
+                                                false,
+                                                &mut Some(&mut has_generics),
+                                                &ident,
+                                            );
                                             args.push((has_generics, ident.to_string()));
                                         }
                                     }
@@ -865,7 +1100,17 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         spc.sig.generics = Generics::default();
                         let mut output_has_generics = false;
                         if let ReturnType::Type(_, ty) = &mut spc.sig.output {
-                            check_generics(&quote!(), ty, &gen, &pool_type, &entry.generics, 1, false, &mut Some(&mut output_has_generics), &spc.sig.ident);
+                            check_generics(
+                                &quote!(),
+                                ty,
+                                &gen,
+                                &pool_type,
+                                &entry.generics,
+                                1,
+                                false,
+                                &mut Some(&mut output_has_generics),
+                                &spc.sig.ident,
+                            );
                         }
                         let mut last_arg_is_journal = false;
                         if let Some(last) = spc.sig.inputs.last() {
@@ -876,7 +1121,8 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                                             if last.ident == "Journal" {
                                                 let args = &last.arguments;
                                                 let j = quote!(Journal #args);
-                                                last_arg_is_journal = j.to_string() == quote!(Journal<#pool_type>).to_string();
+                                                last_arg_is_journal = j.to_string()
+                                                    == quote!(Journal<#pool_type>).to_string();
                                             }
                                         }
                                     }
@@ -912,9 +1158,10 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         if let Ok(abi) = parse2::<Abi>(quote!(extern "C")) {
                             spc.sig.abi = Some(abi);
                         }
-                        spc.block = parse2(quote!{{
+                        spc.block = parse2(quote! {{
                             () // no implementation
-                        }}).expect(&format!("{}", line!()));
+                        }})
+                        .expect(&format!("{}", line!()));
 
                         entry.funcs.push((
                             spc.sig.ident.to_string(),
@@ -925,7 +1172,7 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                             spc.sig.output != ReturnType::Default,
                             output_has_generics,
                             is_constructor,
-                            is_const
+                            is_const,
                         ));
 
                         for m in &entry.pools {
@@ -939,7 +1186,8 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                                 }
                             }
                             let ident = ext.sig.ident.clone();
-                            let fname = format_ident!("__{}_{}_{}", m_str, small_name, ext.sig.ident);
+                            let fname =
+                                format_ident!("__{}_{}_{}", m_str, small_name, ext.sig.ident);
                             ext.sig.ident = fname.clone();
                             ext.sig.generics = Generics::default();
                             if let Ok(abi) = parse2::<Abi>(quote!(extern "C")) {
@@ -950,7 +1198,9 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                                 if let FnArg::Receiver(rc) = first {
                                     has_receiver = true;
                                     let mt = rc.mutability;
-                                    if let Ok(arg) = parse2::<FnArg>(quote!(__self: &#mt #new_name<#m>)) {
+                                    if let Ok(arg) =
+                                        parse2::<FnArg>(quote!(__self: &#mt #new_name<#m>))
+                                    {
                                         *first = arg;
                                     }
                                 }
@@ -960,21 +1210,26 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                                 let args = args.split_last().expect(&format!("{}", line!())).1;
                                 let mut failed = false;
                                 let underline = format_ident!("_");
-                                let vals: Vec<&Ident> = ext.sig.inputs.iter().map(|i| {
-                                    if let FnArg::Typed(PatType {pat, ..}) = i {
-                                        if let Pat::Ident(id) = &**pat {
-                                            &id.ident
+                                let vals: Vec<&Ident> = ext
+                                    .sig
+                                    .inputs
+                                    .iter()
+                                    .map(|i| {
+                                        if let FnArg::Typed(PatType { pat, .. }) = i {
+                                            if let Pat::Ident(id) = &**pat {
+                                                &id.ident
+                                            } else {
+                                                failed = true;
+                                                emit_error!(pat.span(), "invalid input");
+                                                &underline
+                                            }
                                         } else {
                                             failed = true;
-                                            emit_error!(pat.span(), "invalid input");
+                                            emit_error!(i.span(), "invalid input");
                                             &underline
                                         }
-                                    } else {
-                                        failed = true;
-                                        emit_error!(i.span(), "invalid input");
-                                        &underline
-                                    }
-                                }).collect();
+                                    })
+                                    .collect();
                                 if failed {
                                     break;
                                 }
@@ -1000,20 +1255,41 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
                                     if let FnArg::Typed(PatType { pat, ty, .. }) = arg {
                                         if let Pat::Ident(PatIdent { ident, .. }) = &mut **pat {
                                             if ident != "__self" {
-                                                check_generics(&quote!(#m), ty, &gen, &pool_type, &entry.generics, 1, true, &mut None, ident);
+                                                check_generics(
+                                                    &quote!(#m),
+                                                    ty,
+                                                    &gen,
+                                                    &pool_type,
+                                                    &entry.generics,
+                                                    1,
+                                                    true,
+                                                    &mut None,
+                                                    ident,
+                                                );
                                                 args.push(quote!(#ident));
                                             }
                                         }
                                     }
                                 }
                                 if let ReturnType::Type(_, ty) = &mut ext.sig.output {
-                                    check_generics(&quote!(#m), ty, &gen, &pool_type, &entry.generics, 1, true, &mut None, &func.sig.ident);
+                                    check_generics(
+                                        &quote!(#m),
+                                        ty,
+                                        &gen,
+                                        &pool_type,
+                                        &entry.generics,
+                                        1,
+                                        true,
+                                        &mut None,
+                                        &func.sig.ident,
+                                    );
                                 }
-                                ext.block = parse2(quote!{{
+                                ext.block = parse2(quote! {{
                                     __self.#fname(#(#args,)*)
-                                }}).expect(&format!("{}", line!()));
+                                }})
+                                .expect(&format!("{}", line!()));
 
-                                expanded.push(quote!{
+                                expanded.push(quote! {
                                     #[no_mangle]
                                     #[deny(improper_ctypes_definitions)]
                                     #ext
@@ -1046,19 +1322,16 @@ pub fn cbindgen(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 fn parse_c_fn(sig: &str, name: &str) -> (String, Vec<String>) {
     fn is_word(c: char) -> bool {
-        (c >= 'a' && c <= 'z') ||
-        (c >= 'A' && c <= 'Z') ||
-        (c >= '0' && c <= '9') ||
-        c == '_'
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'
     }
 
     let mut par = 0; // (...)
-    let mut br = 0;  // [...]
-    let mut lt = 0;  // <...>
-    let mut args = vec!();
+    let mut br = 0; // [...]
+    let mut lt = 0; // <...>
+    let mut args = vec![];
     let mut ret = String::new();
     let mut token = String::new();
-    let mut tokens = vec!();
+    let mut tokens = vec![];
     for c in sig.chars() {
         if !is_word(c) {
             if !token.is_empty() {
@@ -1088,8 +1361,10 @@ fn parse_c_fn(sig: &str, name: &str) -> (String, Vec<String>) {
             match t.as_str() {
                 "(" => {
                     par += 1;
-                    if par == 1 { continue; }
-                },
+                    if par == 1 {
+                        continue;
+                    }
+                }
                 ")" => {
                     if par == 1 && br == 0 && lt == 0 {
                         args.push(token.clone());
@@ -1097,7 +1372,7 @@ fn parse_c_fn(sig: &str, name: &str) -> (String, Vec<String>) {
                         continue;
                     }
                     par -= 1
-                },
+                }
                 "[" => br += 1,
                 "]" => br -= 1,
                 "<" => lt += 1,
@@ -1109,7 +1384,7 @@ fn parse_c_fn(sig: &str, name: &str) -> (String, Vec<String>) {
                         continue;
                     }
                 }
-                _ => ()
+                _ => (),
             }
             token += &(t + " ");
         }
@@ -1119,7 +1394,12 @@ fn parse_c_fn(sig: &str, name: &str) -> (String, Vec<String>) {
 
 use std::path::PathBuf;
 
-pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: bool) -> std::io::Result<()> {
+pub fn export(
+    dir: PathBuf,
+    span: proc_macro2::Span,
+    overwrite: bool,
+    warning: bool,
+) -> std::io::Result<()> {
     if let Ok(mut iter) = dir.read_dir() {
         if iter.next().is_some() {
             if overwrite {
@@ -1152,14 +1432,18 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
         }
     }
 
-    let mut pools = unsafe { match POOLS.lock() {
-        Ok(g) => g,
-        Err(p) => p.into_inner()
-    } };
-    let mut types = unsafe { match TYPES.lock() {
-        Ok(g) => g,
-        Err(p) => p.into_inner()
-    } };
+    let mut pools = unsafe {
+        match POOLS.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        }
+    };
+    let mut types = unsafe {
+        match TYPES.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        }
+    };
 
     for (ty, cnt) in &mut *types {
         let alias = cnt.alias.clone();
@@ -1167,22 +1451,36 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
         for p in &cnt.pools {
             if let Some(pool) = pools.get_mut(&*p) {
                 let alias = alias.replace("{pool}", p);
-                pool.contents = pool.contents.replace("// forward declarations",
-                    &format!("// forward declarations\n{}", fwd_decl));
-                pool.contents = pool.contents.replace("    // type aliases",
-                    &format!("    // type aliases\n    {}", alias));
-                pool.contents = pool.contents.replace("// friend classes",
-                    &format!("// friend classes\n    {}\n", fwd_decl.replace(">", ">\n    friend")));
+                pool.contents = pool.contents.replace(
+                    "// forward declarations",
+                    &format!("// forward declarations\n{}", fwd_decl),
+                );
+                pool.contents = pool.contents.replace(
+                    "    // type aliases",
+                    &format!("    // type aliases\n    {}", alias),
+                );
+                pool.contents = pool.contents.replace(
+                    "// friend classes",
+                    &format!(
+                        "// friend classes\n    {}\n",
+                        fwd_decl.replace(">", ">\n    friend")
+                    ),
+                );
             }
         }
-        let lock = if cnt.attrs.concurrent { "
-        auto __guard = guard();" } else { "" };
+        let lock = if cnt.attrs.concurrent {
+            "
+        auto __guard = guard();"
+        } else {
+            ""
+        };
         let mut cbindfile = "".to_owned();
         // let mut funcs = vec!();
         for (_, _, f, _, _, _, _, _, _) in &mut cnt.funcs {
             let re = Regex::new(&format!(r"\#\[no_mangle\].*")).expect(&format!("{}", line!()));
             if re.find(f).is_some() {
-                let re = Regex::new(&format!(r"\bGen\b\s*<\s*(\w+)\s*>")).expect(&format!("{}", line!()));
+                let re = Regex::new(&format!(r"\bGen\b\s*<\s*(\w+)\s*>"))
+                    .expect(&format!("{}", line!()));
                 *f = re.replace_all(f, "&$1").to_string();
                 cbindfile += &f;
                 cbindfile += "\n";
@@ -1195,39 +1493,61 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
             file.flush()?;
             drop(file);
             let builder = Builder::new();
-            let bindings = match Builder::with_src(builder, "/tmp/___corundum_tmp_file.rs").generate() {
-                Ok(bindings) => bindings,
-                Err(msg) => {
-                    if if let Ok(build) = std::env::var("CBINDGEN") {
-                        build == "1"
-                    } else { false } {
-                        abort_call_site!("conversion failed: {}", msg)
-                    } else {
-                        emit_call_site_warning!("conversion failed: {}", msg);
-                        return Ok(());
+            let bindings =
+                match Builder::with_src(builder, "/tmp/___corundum_tmp_file.rs").generate() {
+                    Ok(bindings) => bindings,
+                    Err(msg) => {
+                        if if let Ok(build) = std::env::var("CBINDGEN") {
+                            build == "1"
+                        } else {
+                            false
+                        } {
+                            abort_call_site!("conversion failed: {}", msg)
+                        } else {
+                            emit_call_site_warning!("conversion failed: {}", msg);
+                            return Ok(());
+                        }
                     }
-                }
-            };
+                };
             // let mut stream = SourceWriter::new();
             bindings.write_to_file("/tmp/___corundum_tmp_file.h");
             let s = read_to_string("/tmp/___corundum_tmp_file.h")?;
 
-            for (name, fn_args, sig, tmp, ty_pool, has_return, _, is_cons, is_const) in &mut cnt.funcs {
-                let tmpl = if tmp.is_empty() { "".to_owned() } else {
+            for (name, fn_args, sig, tmp, ty_pool, has_return, _, is_cons, is_const) in
+                &mut cnt.funcs
+            {
+                let tmpl = if tmp.is_empty() {
+                    "".to_owned()
+                } else {
                     format!("template < class {} > ", tmp.join(", class "))
                 };
                 let tmpl_kw = if tmp.is_empty() { "" } else { "template " }.to_owned();
-                let gen = if tmp.is_empty() { "".to_owned() } else {
+                let gen = if tmp.is_empty() {
+                    "".to_owned()
+                } else {
                     format!("<{}>", tmp.join(","))
-                }.to_owned();
-                let args = fn_args.iter().map(|(_, n)| n.to_owned()).collect::<Vec<String>>().join(", ");
-                let re = Regex::new(&format!(r"(.+\W+{}\(.*\));", name)).expect(&format!("{}", line!()));
-                let sig_re = Regex::new(&format!(r".+\W+{}(\(.*\));", name)).expect(&format!("{}", line!()));
-                let re_pool = if ty_pool.is_empty() { None } else {
+                }
+                .to_owned();
+                let args = fn_args
+                    .iter()
+                    .map(|(_, n)| n.to_owned())
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                let re =
+                    Regex::new(&format!(r"(.+\W+{}\(.*\));", name)).expect(&format!("{}", line!()));
+                let sig_re =
+                    Regex::new(&format!(r".+\W+{}(\(.*\));", name)).expect(&format!("{}", line!()));
+                let re_pool = if ty_pool.is_empty() {
+                    None
+                } else {
                     Some(Regex::new(&format!(r"\b{}\b", ty_pool)).expect(&format!("{}", line!())))
                 };
                 if let Some(cap) = re.captures(&s) {
-                    *sig = cap.get(1).expect(&format!("{}", line!())).as_str().to_owned();
+                    *sig = cap
+                        .get(1)
+                        .expect(&format!("{}", line!()))
+                        .as_str()
+                        .to_owned();
                     if let Some(re) = &re_pool {
                         *sig = re.replace_all(sig, "_P").to_string();
                     }
@@ -1236,7 +1556,13 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
                     if *is_cons {
                         let name_str = ty.to_string();
                         let cname = name_str;
-                        let mut sig = sig_re.captures(&s).expect(&format!("{}", line!())).get(1).expect(&format!("{}", line!())).as_str().to_owned();
+                        let mut sig = sig_re
+                            .captures(&s)
+                            .expect(&format!("{}", line!()))
+                            .get(1)
+                            .expect(&format!("{}", line!()))
+                            .as_str()
+                            .to_owned();
                         if let Some(re) = &re_pool {
                             sig = re.replace_all(&sig, "_P").to_string();
                         }
@@ -1255,16 +1581,22 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
                             lock = lock,
                         );
                     } else {
-                        cnt.contents = cnt.contents.replace("    // template methods",
-                            &format!("    // template methods\n    {}static {};",
-                            tmpl,
-                            sig.replacen(
-                                &format!("{}(", name),
-                                &format!("{name}({const}__{ty}<_P> *__self, ",
+                        cnt.contents = cnt.contents.replace(
+                            "    // template methods",
+                            &format!(
+                                "    // template methods\n    {}static {};",
+                                tmpl,
+                                sig.replacen(
+                                    &format!("{}(", name),
+                                    &format!("{name}({const}__{ty}<_P> *__self, ",
                                 name = name,
                                 ty = ty,
-                                const = if *is_const { "const " } else { "" }), 1)
-                                .replace(", )", ")")));
+                                const = if *is_const { "const " } else { "" }),
+                                    1
+                                )
+                                .replace(", )", ")")
+                            ),
+                        );
                         let ret_tok = if *has_return { "return " } else { "" };
                         append = format!("    // other methods\n    {sig}{const} {{{lock}
         {ret}{ty}_traits<_P>::{tmp}{fn}{gen}(self(){comma}{args});
@@ -1285,22 +1617,25 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
                     // eprintln!("type: {:?}", cnt.generics);
                     // eprintln!("func {}: {:?}", name, tmp);
                     let diff = tmp.len() - cnt.generics.len();
-                    for i in diff .. tmp.len() {
-                        let re = Regex::new(&format!(r"\b{}\b", tmp[i])).expect(&format!("{}", line!()));
-                        append = re.replace_all(&append, &cnt.generics[i-diff]).to_string();
+                    for i in diff..tmp.len() {
+                        let re =
+                            Regex::new(&format!(r"\b{}\b", tmp[i])).expect(&format!("{}", line!()));
+                        append = re.replace_all(&append, &cnt.generics[i - diff]).to_string();
                     }
                     let fn_tmp = &tmp.as_slice()[0..diff];
                     if !fn_tmp.is_empty() {
-                        append = append.replacen("\n",
-                            &format!("\n    template<class {}>\n", fn_tmp.join(", class")), 1);
+                        append = append.replacen(
+                            "\n",
+                            &format!("\n    template<class {}>\n", fn_tmp.join(", class")),
+                            1,
+                        );
                     }
                     if *is_cons {
                         cnt.contents = cnt.contents.replace("    // other constructors", &append);
                     } else {
                         cnt.contents = cnt.contents.replace("    // other methods", &append);
                     }
-                }
-                else {
+                } else {
                     abort_call_site!(
                         "cbindgen could not find C++ bindings for `{}::{}(...)'", ty, name;
                         note = "in type `{}'", ty;
@@ -1314,7 +1649,6 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
                 //         );
                 // }
             }
-
         }
 
         for (p, contents) in &mut cnt.traits {
@@ -1326,14 +1660,15 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
                 } else {
                     "".to_owned()
                 };
-                let mut arglist = vec!();
+                let mut arglist = vec![];
                 for i in 0..args.len() {
                     let (gen, n) = &args[i];
                     arglist.push(if *gen {
                         if re.find(&cargs[i]).is_some() {
                             n.to_owned()
                         } else {
-                            let mut res = format!("({}){}", cargs[i].replace(&format!(" {} ", n), " "), n);
+                            let mut res =
+                                format!("({}){}", cargs[i].replace(&format!(" {} ", n), " "), n);
                             for t in tmp.clone() {
                                 res = res.replace(&format!(" {} ", t), " void ");
                             }
@@ -1343,7 +1678,9 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
                         n.to_owned()
                     });
                 }
-                let tmp = if tmp.is_empty() { "".to_owned() } else {
+                let tmp = if tmp.is_empty() {
+                    "".to_owned()
+                } else {
                     format!("template < class {} > ", tmp.join(", class "))
                 };
                 let args = arglist.join(", ");
@@ -1366,8 +1703,10 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
                                 args = args)
                             ));
                 } else {
-                    *contents = contents.replace("    // specialized methods",
-                        &format!("    // specialized methods\n    {}static {} {{\n        {}\n    }}",
+                    *contents = contents.replace(
+                        "    // specialized methods",
+                        &format!(
+                            "    // specialized methods\n    {}static {} {{\n        {}\n    }}",
                             tmp,
                             sig.replacen(
                                 &format!("{}(", f),
@@ -1375,8 +1714,10 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
                                 f=f,
                                 ty=ty,
                                 p=p,
-                                const = if *is_const { "const " } else { "" }), 1)
-                                .replace(", )", ")"),
+                                const = if *is_const { "const " } else { "" }),
+                                1
+                            )
+                            .replace(", )", ")"),
                             &format!("{ret}{cast}__{pool}_{type}_{fn}(__self{comma}{args});",
                                 ret = if *ret { "return " } else { "" },
                                 pool = p,
@@ -1385,7 +1726,8 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
                                 cast = cast,
                                 comma = if args.is_empty() { "" } else { ", " },
                                 args = args)
-                            ));
+                        ),
+                    );
                 }
                 *sig = old_sig;
             }
@@ -1398,13 +1740,13 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
             for (ty, content) in &*types {
                 let path = format!("{}/{}.hpp", dir.to_string_lossy(), ty.to_lowercase());
                 if let Ok(mut file) = File::create(path) {
-                    let _=file.write_all(content.contents.as_bytes());
+                    let _ = file.write_all(content.contents.as_bytes());
                 }
             }
             for (pool, content) in &*pools {
                 let path = format!("{}/{}.hpp", dir.to_string_lossy(), pool);
                 if let Ok(mut file) = File::create(path) {
-                    let _=file.write_all(content.contents.as_bytes());
+                    let _ = file.write_all(content.contents.as_bytes());
                 }
             }
         }
@@ -1419,8 +1761,8 @@ pub fn export(dir: PathBuf, span: proc_macro2::Span, overwrite: bool, warning: b
 static mut CODE_SEGMENT_BASE_SET: bool = false;
 
 pub fn carbide(input: TokenStream) -> TokenStream {
-    let mut types = vec!();
-    let mut mods = vec!();
+    let mut types = vec![];
+    let mut mods = vec![];
     let mut output = "".to_owned();
     let mut overwrite = false;
     // let mut warnings = true;
@@ -1431,58 +1773,76 @@ pub fn carbide(input: TokenStream) -> TokenStream {
                 if let Expr::Path(func) = *call.func {
                     if let Some(op) = func.path.get_ident() {
                         match op.to_string().as_str() {
-                            "mods"       => {
+                            "mods" => {
                                 for arg in call.args {
                                     if let Expr::Call(call) = arg {
                                         let m = &*call.func;
-                                        let mut flags = vec!();
+                                        let mut flags = vec![];
                                         for flag in &call.args {
                                             flags.push(quote_spanned!(flag.span() => #flag));
                                         }
-                                        mods.push((quote_spanned!(call.span() => #m), quote!(#(#flags)|*)));
+                                        mods.push((
+                                            quote_spanned!(call.span() => #m),
+                                            quote!(#(#flags)|*),
+                                        ));
                                     } else if let Expr::Path(m) = arg {
-                                        mods.push((quote_spanned!(m.span() => #m), quote!( corundum::open_flags::O_CFNE )));
+                                        mods.push((
+                                            quote_spanned!(m.span() => #m),
+                                            quote!(corundum::open_flags::O_CFNE),
+                                        ));
                                     }
                                 }
-                            },
-                            "types"      => {
+                            }
+                            "types" => {
                                 for ty in call.args {
                                     types.push(quote_spanned!(ty.span() => #ty));
                                 }
-                            },
-                            "open_flags" => {
-                            },
+                            }
+                            "open_flags" => {}
                             "allow" => {
                                 for arg in call.args {
                                     if !if let Expr::Path(ref p) = arg {
                                         if let Some(op) = p.path.get_ident() {
                                             match op.to_string().as_str() {
-                                                "overwrite" => { overwrite = true; true},
+                                                "overwrite" => {
+                                                    overwrite = true;
+                                                    true
+                                                }
                                                 // "warnings" => { warnings = false; true},
-                                                _ => false
+                                                _ => false,
                                             }
-                                        } else { false }
-                                    } else { false } {
+                                        } else {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    } {
                                         abort!(arg.span(), "invalid argument";
                                             note = "available argument is 'overwrite'";
                                         );
                                     }
                                 }
-                            },
-                            "output"     => {
+                            }
+                            "output" => {
                                 if !if call.args.len() == 1 {
                                     if let Expr::Lit(lit) = &call.args[0] {
                                         if let Lit::Str(s) = &lit.lit {
                                             output = s.value();
                                             true
-                                        } else { false }
-                                    } else { false }
-                                } else { false } {
+                                        } else {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    false
+                                } {
                                     abort!(func.span(),
                                         "expected 1 string argument, found {} (probably non-string)", call.args.len()
                                     )
                                 }
-                            },
+                            }
                             _ => {
                                 abort!(op.span(), "invalid option";
                                     note = "available options are 'mods', 'types', 'output', and 'allow'"
@@ -1528,10 +1888,12 @@ pub fn carbide(input: TokenStream) -> TokenStream {
         #(#recurse,)*
     };
 
-    let mut all_pools = unsafe { match POOLS.lock() {
-        Ok(g) => g,
-        Err(p) => p.into_inner()
-    } };
+    let mut all_pools = unsafe {
+        match POOLS.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        }
+    };
     let mut expanded = vec![];
     for m in &mods {
         let flags = &m.1;
@@ -1561,7 +1923,9 @@ pub fn carbide(input: TokenStream) -> TokenStream {
         let mod_name = format_ident!("__{}", name_str);
         let root_name = format_ident!("__{}_root_t", name_str);
 
-        let entry = all_pools.entry(name_str.clone()).or_insert(Contents::default());
+        let entry = all_pools
+            .entry(name_str.clone())
+            .or_insert(Contents::default());
 
         expanded.push(quote! {
             corundum::pool!(#m);
@@ -1972,7 +2336,7 @@ root_name = root_name.to_string(),
     }
 
     unsafe {
-        if ! CODE_SEGMENT_BASE_SET {
+        if !CODE_SEGMENT_BASE_SET {
             expanded.push(quote!(
                 #[no_mangle]
                 pub unsafe extern "C" fn __setup_codesegment_base(offset: i64) {

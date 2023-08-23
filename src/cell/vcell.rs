@@ -1,8 +1,8 @@
 use crate::alloc::MemPool;
-use crate::{PSafe, VSafe, utils};
+use crate::{utils, PSafe, VSafe};
 use std::cmp::*;
-use std::mem::*;
 use std::marker::PhantomData;
+use std::mem::*;
 use std::ops::{Deref, DerefMut};
 
 /// A persistent memory location containing a volatile data

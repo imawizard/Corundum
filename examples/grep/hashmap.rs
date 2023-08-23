@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use corundum::default::*;
 use std::collections::hash_map::DefaultHasher;
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
 const BUCKETS_MAX: usize = 16;
@@ -92,10 +92,7 @@ where
         }
 
         self.values.push(PCell::new(f(V::default())), j);
-        bucket.push(
-            PRefCell::new((key.pclone(j), self.values.len() - 1)),
-            j,
-        );
+        bucket.push(PRefCell::new((key.pclone(j), self.values.len() - 1)), j);
     }
 
     pub fn clear(&mut self, j: &Journal) {

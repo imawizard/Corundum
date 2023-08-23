@@ -1,9 +1,9 @@
 use crate::alloc::*;
 use crate::ll::*;
 use crate::utils::*;
-use std::ops::{Index,IndexMut};
 use std::marker::PhantomData;
 use std::mem;
+use std::ops::{Index, IndexMut};
 
 #[repr(transparent)]
 #[derive(Clone, Debug)]
@@ -141,12 +141,15 @@ impl<A: MemPool> BuddyAlg<A> {
 
         Self::buddy(base).next = u64::MAX;
 
-        #[cfg(not(any(feature = "no_pthread", windows)))] unsafe {
-        crate::sync::init_lock(&mut self.mutex.0, &mut self.mutex.1);
+        #[cfg(not(any(feature = "no_pthread", windows)))]
+        unsafe {
+            crate::sync::init_lock(&mut self.mutex.0, &mut self.mutex.1);
         }
 
-        #[cfg(any(feature = "no_pthread", windows))] {
-        self.mutex = 0; }
+        #[cfg(any(feature = "no_pthread", windows))]
+        {
+            self.mutex = 0;
+        }
     }
 
     #[inline]
@@ -174,9 +177,12 @@ impl<A: MemPool> BuddyAlg<A> {
             #[cfg(not(any(feature = "no_pthread", windows)))]
             libc::pthread_mutex_lock(&mut self.mutex.0);
 
-            #[cfg(any(feature = "no_pthread", windows))] {
+            #[cfg(any(feature = "no_pthread", windows))]
+            {
                 let tid = std::thread::current().id().as_u64().get();
-                while std::intrinsics::atomic_cxchg_acqrel_acquire(&mut self.mutex, 0, tid).0 != tid {}
+                while std::intrinsics::atomic_cxchg_acqrel_acquire(&mut self.mutex, 0, tid).0 != tid
+                {
+                }
             }
         }
     }
@@ -484,12 +490,15 @@ impl<A: MemPool> BuddyAlg<A> {
     ///
     /// [`DropOnFailure`]: ../alloc/trait.MemPool.html#method.drop_on_failure
     pub fn recover(&mut self) {
-        #[cfg(not(any(feature = "no_pthread", windows)))] unsafe {
-        crate::sync::init_lock(&mut self.mutex.0, &mut self.mutex.1);
+        #[cfg(not(any(feature = "no_pthread", windows)))]
+        unsafe {
+            crate::sync::init_lock(&mut self.mutex.0, &mut self.mutex.1);
         }
 
-        #[cfg(any(feature = "no_pthread", windows))] {
-        self.mutex = 0; }
+        #[cfg(any(feature = "no_pthread", windows))]
+        {
+            self.mutex = 0;
+        }
 
         #[cfg(feature = "check_allocator_cyclic_links")]
         if !self.verify() {
@@ -500,7 +509,8 @@ impl<A: MemPool> BuddyAlg<A> {
             #[cfg(debug_assertions)]
             eprintln!("Crashed while the allocator was operating");
 
-            #[cfg(feature = "verbose")] {
+            #[cfg(feature = "verbose")]
+            {
                 if *crate::utils::VERBOSE {
                     self.aux.foreach(|(off, next)| {
                         let n = Self::buddy(off);
@@ -526,12 +536,15 @@ impl<A: MemPool> BuddyAlg<A> {
                 eprintln!("Dropping unnecessary allocations");
                 unsafe {
                     let self_mut = self as *mut Self;
-                    self.drop_log.drain_atomic(|(off, len)| {
-                        (*self_mut).dealloc_impl(off, len, false);
-                    }, || {
-                        (*self_mut).drain_aux();
-                        (*self_mut).discard();
-                    });
+                    self.drop_log.drain_atomic(
+                        |(off, len)| {
+                            (*self_mut).dealloc_impl(off, len, false);
+                        },
+                        || {
+                            (*self_mut).drain_aux();
+                            (*self_mut).discard();
+                        },
+                    );
                 }
                 self.drop_log.clear();
             }
@@ -551,8 +564,10 @@ impl<A: MemPool> BuddyAlg<A> {
     }
 
     pub fn recovery_info(&self, info_level: u32) -> String {
-        let mut res = format!("Crashed while operating: {}\n",
-            if self.aux_valid { "Yes" } else { "No" });
+        let mut res = format!(
+            "Crashed while operating: {}\n",
+            if self.aux_valid { "Yes" } else { "No" }
+        );
         if info_level > 1 {
             res += &format!("Redo Operation Logs (aux): {}\n", self.aux.len());
             res += &format!("Redo Logs (log64):         {}\n", self.log64.len());
@@ -622,23 +637,40 @@ impl<A: MemPool> BuddyAlg<A> {
     }
 
     pub fn verify(&mut self) -> bool {
-        if std::env::var("VERIFY").is_err() { return true; }
+        if std::env::var("VERIFY").is_err() {
+            return true;
+        }
         let loops = std::env::var("VERIFY").unwrap() == "2";
         self.lock();
         for idx in 3..self.last_idx + 1 {
             let mut curr = self.buddies[idx];
             let mut links = vec![];
             while let Some(b) = off_to_option(curr) {
-                if { if loops { links.contains(&b) } else { false } } || !Self::in_range(b) {
+                if {
+                    if loops {
+                        links.contains(&b)
+                    } else {
+                        false
+                    }
+                } || !Self::in_range(b)
+                {
                     self.unlock();
                     if !Self::in_range(b) {
-                        eprintln!("Verification Failed: Invalid block address 0x{:x} (idx={})", b, idx);
+                        eprintln!(
+                            "Verification Failed: Invalid block address 0x{:x} (idx={})",
+                            b, idx
+                        );
                     } else {
-                        eprintln!("Verification Failed: A cyclic link detected in list {}", idx);
+                        eprintln!(
+                            "Verification Failed: A cyclic link detected in list {}",
+                            idx
+                        );
                     }
                     return false;
                 }
-                if loops { links.push(b); }
+                if loops {
+                    links.push(b);
+                }
                 let e = Self::buddy(b);
                 curr = e.next;
             }
@@ -655,7 +687,7 @@ impl<A: MemPool> BuddyAlg<A> {
             let mut curr = self.buddies[idx];
             while let Some(b) = off_to_option(curr) {
                 let e = Self::buddy(b);
-                if A::contains(b+A::start()) {
+                if A::contains(b + A::start()) {
                     print!("({}:{})", b, b + (1 << idx) - 1);
                 } else {
                     print!("(ERR)");
@@ -676,19 +708,28 @@ pub struct Zones<T, A: MemPool> {
     count: usize,
     quota: usize,
     base: usize,
-    phantom: PhantomData<(T,A)>
+    phantom: PhantomData<(T, A)>,
 }
 
 impl<T, A: MemPool> Zones<T, A> {
-
     /// Creates a new `Zones` object
     ///
     /// * `count` is the number of zones (usually is the number cpus)
     /// * `offset` is the size of reserved memory to be allocated for metadata
     ///
     pub fn new(count: usize, offset: usize, quota: usize) -> Self {
-        assert!(offset <= quota, "Memory quota exceeds the reserved memory ({} > {})", offset, quota);
-        Self { count, quota, base: offset, phantom: PhantomData }
+        assert!(
+            offset <= quota,
+            "Memory quota exceeds the reserved memory ({} > {})",
+            offset,
+            quota
+        );
+        Self {
+            count,
+            quota,
+            base: offset,
+            phantom: PhantomData,
+        }
     }
 
     #[inline]
@@ -737,18 +778,22 @@ impl<T, A: MemPool> Zones<T, A> {
 
 impl<T, A: MemPool> Index<usize> for Zones<T, A> {
     type Output = T;
-    fn index(&self, i: usize) -> &T { self.at(i) }
+    fn index(&self, i: usize) -> &T {
+        self.at(i)
+    }
 }
 
 impl<T, A: MemPool> IndexMut<usize> for Zones<T, A> {
-    fn index_mut(&mut self, i: usize) -> &mut T { self.at(i) }
+    fn index_mut(&mut self, i: usize) -> &mut T {
+        self.at(i)
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::RootObj;
     use crate::default::*;
     use crate::open_flags::*;
+    use crate::RootObj;
     type P = Allocator;
 
     #[test]
@@ -757,12 +802,12 @@ mod test {
         use rand::Rng;
 
         struct Root {
-            vec: PRefCell<PVec<Parc<(i32, PMutex<PString>)>>>
+            vec: PRefCell<PVec<Parc<(i32, PMutex<PString>)>>>,
         }
         impl RootObj<P> for Root {
             fn init(_: &Journal) -> Self {
                 Root {
-                    vec: PRefCell::new(PVec::new())
+                    vec: PRefCell::new(PVec::new()),
                 }
             }
         }
@@ -770,28 +815,34 @@ mod test {
         let u = P::used();
         P::transaction(|j| {
             let _b = Pbox::new(1, j);
-            let _b = Pbox::new([0;8], j);
-            let _b = Pbox::new([0;64], j);
-            let _b = Pbox::new([0;1024], j);
-            let _b = Pbox::new([0;4096], j);
-            let _b = Pbox::new([0;10000], j);
-        }).unwrap();
+            let _b = Pbox::new([0; 8], j);
+            let _b = Pbox::new([0; 64], j);
+            let _b = Pbox::new([0; 1024], j);
+            let _b = Pbox::new([0; 4096], j);
+            let _b = Pbox::new([0; 10000], j);
+        })
+        .unwrap();
 
         P::transaction(|j| {
-            let _b = Pbox::new([0;10000], j);
-            let _b = Pbox::new([0;8], j);
-            let _b = Pbox::new([0;1024], j);
-            let _b = Pbox::new([0;64], j);
+            let _b = Pbox::new([0; 10000], j);
+            let _b = Pbox::new([0; 8], j);
+            let _b = Pbox::new([0; 1024], j);
+            let _b = Pbox::new([0; 64], j);
             let _b = Pbox::new(1, j);
-            let _b = Pbox::new([0;4096], j);
-        }).unwrap();
+            let _b = Pbox::new([0; 4096], j);
+        })
+        .unwrap();
 
         P::transaction(|j| {
             let mut b = root.vec.borrow_mut(j);
             for i in 0..2 {
-                b.push(Parc::new((i, PMutex::new(format!("item {}", i).to_pstring(j))), j), j);
+                b.push(
+                    Parc::new((i, PMutex::new(format!("item {}", i).to_pstring(j))), j),
+                    j,
+                );
             }
-        }).unwrap();
+        })
+        .unwrap();
 
         let mut ts = vec![];
         for i in 0..2 {
@@ -806,10 +857,11 @@ mod test {
                                 .sample_iter(&Alphanumeric)
                                 .take(l)
                                 .collect();
-                            //).unwrap();
+                        //).unwrap();
                         *m = crate::str::String::from_utf8(s, j).unwrap();
                     }
-                }).unwrap();
+                })
+                .unwrap();
             }));
         }
 
@@ -822,7 +874,8 @@ mod test {
             if vec.len() > 10 {
                 vec.clear();
             }
-        }).unwrap();
+        })
+        .unwrap();
 
         println!("{} -> {}", u, P::used());
     }
@@ -831,99 +884,161 @@ mod test {
 #[cfg(feature = "verbose")]
 #[macro_export]
 macro_rules! __cfg_verbose {
-    ($blk:block) => { #[allow(unused_braces)] $blk };
-    ($if:block,$else:block) => { #[allow(unused_braces)] $if };
+    ($blk:block) => {
+        #[allow(unused_braces)]
+        $blk
+    };
+    ($if:block,$else:block) => {
+        #[allow(unused_braces)]
+        $if
+    };
 }
 
 #[cfg(not(feature = "verbose"))]
 #[macro_export]
 macro_rules! __cfg_verbose {
-    ($blk:block) => { };
-    ($if:block,$else:block) => { #[allow(unused_braces)] $else };
+    ($blk:block) => {};
+    ($if:block,$else:block) => {
+        #[allow(unused_braces)]
+        $else
+    };
 }
 
 #[cfg(feature = "check_access_violation")]
 #[macro_export]
 macro_rules! __cfg_check_access_violation {
-    ($blk:block) => { #[allow(unused_braces)] $blk };
-    ($if:block,$else:block) => { #[allow(unused_braces)] $if };
+    ($blk:block) => {
+        #[allow(unused_braces)]
+        $blk
+    };
+    ($if:block,$else:block) => {
+        #[allow(unused_braces)]
+        $if
+    };
 }
 
 #[cfg(not(feature = "check_access_violation"))]
 #[macro_export]
 macro_rules! __cfg_check_access_violation {
-    ($blk:block) => { };
-    ($if:block,$else:block) => { #[allow(unused_braces)] $else }
+    ($blk:block) => {};
+    ($if:block,$else:block) => {
+        #[allow(unused_braces)]
+        $else
+    };
 }
 
 #[cfg(feature = "pin_journals")]
 #[macro_export]
 macro_rules! __cfg_pin_journals {
-    ($blk:block) => { #[allow(unused_braces)] $blk };
-    ($if:block,$else:block) => { #[allow(unused_braces)] $if };
+    ($blk:block) => {
+        #[allow(unused_braces)]
+        $blk
+    };
+    ($if:block,$else:block) => {
+        #[allow(unused_braces)]
+        $if
+    };
 }
 
 #[cfg(not(feature = "pin_journals"))]
 #[macro_export]
 macro_rules! __cfg_pin_journals {
-    ($blk:block) => { };
-    ($if:block,$else:block) => { #[allow(unused_braces)] $else };
+    ($blk:block) => {};
+    ($if:block,$else:block) => {
+        #[allow(unused_braces)]
+        $else
+    };
 }
 
 #[cfg(feature = "check_allocator_cyclic_links")]
 #[macro_export]
 macro_rules! __cfg_check_allocator_cyclic_links {
-    ($blk:block) => { #[allow(unused_braces)] $blk };
-    ($if:block,$else:block) => { #[allow(unused_braces)] $if };
+    ($blk:block) => {
+        #[allow(unused_braces)]
+        $blk
+    };
+    ($if:block,$else:block) => {
+        #[allow(unused_braces)]
+        $if
+    };
 }
 
 #[cfg(not(feature = "check_allocator_cyclic_links"))]
 #[macro_export]
 macro_rules! __cfg_check_allocator_cyclic_links {
-    ($blk:block) => { };
-    ($if:block,$else:block) => { #[allow(unused_braces)] $else };
+    ($blk:block) => {};
+    ($if:block,$else:block) => {
+        #[allow(unused_braces)]
+        $else
+    };
 }
 
 #[cfg(feature = "stat_perf")]
 #[macro_export]
 macro_rules! __cfg_stat_perf {
-    ($blk:expr) => { #[allow(unused_braces)] $blk };
-    ($if:expr,$else:expr) => { #[allow(unused_braces)] $if }
+    ($blk:expr) => {
+        #[allow(unused_braces)]
+        $blk
+    };
+    ($if:expr,$else:expr) => {
+        #[allow(unused_braces)]
+        $if
+    };
 }
 
 #[cfg(not(feature = "stat_perf"))]
 #[macro_export]
 macro_rules! __cfg_stat_perf {
-    ($blk:expr) => { () };
-    ($if:expr,$else:expr) => { #[allow(unused_braces)] $else }
+    ($blk:expr) => {
+        ()
+    };
+    ($if:expr,$else:expr) => {
+        #[allow(unused_braces)]
+        $else
+    };
 }
 
 #[cfg(feature = "stat_footprint")]
 #[macro_export]
 macro_rules! __cfg_stat_footprint {
-    ($blk:block) => { #[allow(unused_braces)] $blk };
-    ($if:block,$else:block) => { #[allow(unused_braces)] $if };
+    ($blk:block) => {
+        #[allow(unused_braces)]
+        $blk
+    };
+    ($if:block,$else:block) => {
+        #[allow(unused_braces)]
+        $if
+    };
 }
 
 #[cfg(not(feature = "stat_footprint"))]
 #[macro_export]
 macro_rules! __cfg_stat_footprint {
-    ($blk:block) => { };
-    ($if:block,$else:block) =>  { #[allow(unused_braces)] $else }
+    ($blk:block) => {};
+    ($if:block,$else:block) => {
+        #[allow(unused_braces)]
+        $else
+    };
 }
 
 #[cfg(feature = "check_double_free")]
 #[macro_export]
 macro_rules! __cfg_delete_history {
-    ($blk:block) => { $blk };
-    ($if:block,$else:block) => { $if };
+    ($blk:block) => {
+        $blk
+    };
+    ($if:block,$else:block) => {
+        $if
+    };
 }
 
 #[cfg(not(feature = "check_double_free"))]
 #[macro_export]
 macro_rules! __cfg_delete_history {
-    ($blk:block) => { };
-    ($if:block,$else:block) =>  { $else }
+    ($blk:block) => {};
+    ($if:block,$else:block) => {
+        $else
+    };
 }
 
 #[macro_export]
@@ -1781,12 +1896,30 @@ macro_rules! pool {
 
 #[cfg(feature = "verbose")]
 pub fn debug_alloc<A: MemPool>(addr: u64, len: usize, pre: usize, post: usize) {
-    crate::log!(A, Green, "", "PRE: {:<6}  ({:>6x}:{:<6x}) = {:<6} POST = {:<6}",
-        pre, addr, addr + len as u64 - 1, len, post);
+    crate::log!(
+        A,
+        Green,
+        "",
+        "PRE: {:<6}  ({:>6x}:{:<6x}) = {:<6} POST = {:<6}",
+        pre,
+        addr,
+        addr + len as u64 - 1,
+        len,
+        post
+    );
 }
 
 #[cfg(feature = "verbose")]
 pub fn debug_dealloc<A: MemPool>(addr: u64, len: usize, pre: usize, post: usize) {
-    crate::log!(A, Red, "DEALLOC", "PRE: {:<6}  ({:>6x}:{:<6x}) = {:<6} POST = {:<6}",
-        pre, addr, addr + len as u64 - 1, len, post);
+    crate::log!(
+        A,
+        Red,
+        "DEALLOC",
+        "PRE: {:<6}  ({:>6x}:{:<6x}) = {:<6} POST = {:<6}",
+        pre,
+        addr,
+        addr + len as u64 - 1,
+        len,
+        post
+    );
 }

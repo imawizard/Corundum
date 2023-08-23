@@ -54,19 +54,20 @@ pub unsafe fn as_mut<'a, T: ?Sized>(v: *const T) -> &'a mut T {
 pub fn as_slice<T: ?Sized>(x: &T) -> &[u8] {
     let ptr: *const T = x;
     let ptr: *const u8 = ptr as *const u8;
-    unsafe {
-        std::slice::from_raw_parts(ptr, std::mem::size_of_val(x))
-    }
+    unsafe { std::slice::from_raw_parts(ptr, std::mem::size_of_val(x)) }
 }
 
 pub fn as_slice64<T: ?Sized>(x: &T) -> &[u64] {
     let len = std::mem::size_of_val(x);
-    assert_eq!(len % 8, 0, "Cannot convert an object of size {} bytes to [u64]", len);
+    assert_eq!(
+        len % 8,
+        0,
+        "Cannot convert an object of size {} bytes to [u64]",
+        len
+    );
     let ptr: *const T = x;
     let ptr: *const u64 = ptr as *const u64;
-    unsafe {
-        std::slice::from_raw_parts(ptr, len/8)
-    }
+    unsafe { std::slice::from_raw_parts(ptr, len / 8) }
 }
 
 #[inline(always)]
@@ -110,8 +111,9 @@ impl<T, const N: usize> Ring<T, N> {
     #[inline]
     pub fn push(&mut self, x: T) {
         debug_assert!(
-            (self.tail+1)%N != self.head,
-            "too many slots are used (len = {})", N
+            (self.tail + 1) % N != self.head,
+            "too many slots are used (len = {})",
+            N
         );
 
         self.data[self.tail] = x;
@@ -121,8 +123,9 @@ impl<T, const N: usize> Ring<T, N> {
     #[inline]
     pub fn push_sync(&mut self, x: T) {
         debug_assert!(
-            (self.tail+1)%N != self.head,
-            "too many slots are used (len = {})", N
+            (self.tail + 1) % N != self.head,
+            "too many slots are used (len = {})",
+            N
         );
         self.data[self.tail] = x;
 
@@ -159,7 +162,10 @@ impl<T, const N: usize> Ring<T, N> {
     }
 
     #[inline]
-    pub fn contains(&self, x: T)-> bool where T: Eq {
+    pub fn contains(&self, x: T) -> bool
+    where
+        T: Eq,
+    {
         let mut head = self.head;
         while head != self.tail {
             if x == self.data[head] {
@@ -275,7 +281,7 @@ mod test {
 }
 
 pub struct SpinLock {
-    lock: *mut u8
+    lock: *mut u8,
 }
 
 impl SpinLock {
@@ -287,17 +293,20 @@ impl SpinLock {
 
 impl Drop for SpinLock {
     fn drop(&mut self) {
-        unsafe { std::intrinsics::atomic_store_release(self.lock, 0); }
+        unsafe {
+            std::intrinsics::atomic_store_release(self.lock, 0);
+        }
     }
 }
 
 #[cfg(feature = "verbose")]
-pub static VERBOSE: crate::cell::LazyCell<bool> = crate::cell::LazyCell::new(||
+pub static VERBOSE: crate::cell::LazyCell<bool> = crate::cell::LazyCell::new(|| {
     if let Ok(val) = std::env::var("VERBOSE") {
         val == "1"
     } else {
         false
-    });
+    }
+});
 
 #[macro_export]
 macro_rules! log {

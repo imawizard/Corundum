@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
 use crate::alloc::MemPool;
 use crate::stm::Journal;
 use crate::{PSafe, TxOutSafe};
 use std::fmt;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Eq)]
@@ -18,15 +18,13 @@ use std::ops::{Deref, DerefMut};
 /// [`PNonNull`]: ../alloc/default/type.PNonNull.html
 ///
 pub struct NonNull<T: PSafe + ?Sized> {
-    ptr: *const T
+    ptr: *const T,
 }
 
 impl<T: PSafe + ?Sized> Copy for NonNull<T> {}
 impl<T: PSafe + ?Sized> Clone for NonNull<T> {
     fn clone(&self) -> Self {
-        Self {
-            ptr: self.ptr,
-        }
+        Self { ptr: self.ptr }
     }
 }
 
@@ -50,9 +48,7 @@ impl<T: PSafe> NonNull<T> {
     #[inline]
     pub const fn new_unchecked(ptr: *const T) -> Self {
         // SAFETY: the caller must guarantee that `ptr` is non-null.
-        Self {
-            ptr,
-        }
+        Self { ptr }
     }
 
     /// Creates a `Some(NonNull)` if `ptr` is not null; otherwise `None`.
@@ -73,7 +69,9 @@ impl<T: PSafe> NonNull<T> {
 impl<T: PSafe + ?Sized> Deref for NonNull<T> {
     type Target = T;
     #[inline]
-    fn deref(&self) -> &T { unsafe { &*self.ptr } }
+    fn deref(&self) -> &T {
+        unsafe { &*self.ptr }
+    }
 }
 
 impl<T: fmt::Display + PSafe + ?Sized> fmt::Display for NonNull<T> {
@@ -145,7 +143,7 @@ pub struct LogNonNull<T: PSafe + ?Sized, A: MemPool> {
     #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
     logged: *mut u8,
 
-    phantom: PhantomData<*mut T>
+    phantom: PhantomData<*mut T>,
 }
 
 impl<T: PSafe + ?Sized, A: MemPool> Copy for LogNonNull<T, A> {}
@@ -158,7 +156,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Clone for LogNonNull<T, A> {
             #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
             logged: self.logged,
 
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -181,12 +179,12 @@ impl<T: PSafe, A: MemPool> LogNonNull<T, A> {
     ///
     /// `ptr` and `logged` must be non-null.
     #[inline]
-    pub const unsafe fn new_unchecked(ptr: *mut T,
+    pub const unsafe fn new_unchecked(
+        ptr: *mut T,
 
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
-        logged: *mut u8,
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] logged: *mut u8,
 
-        j: &Journal<A>
+        j: &Journal<A>,
     ) -> Self {
         // SAFETY: the caller must guarantee that `ptr` is non-null.
         Self {
@@ -196,20 +194,21 @@ impl<T: PSafe, A: MemPool> LogNonNull<T, A> {
             #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
             logged,
 
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
     /// Creates a `Some(LogNonNull)` if `ptr` is not null; otherwise `None`.
     #[inline]
-    pub unsafe fn new(ptr: *mut T,
+    pub unsafe fn new(
+        ptr: *mut T,
 
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
-        logged: *mut u8,
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] logged: *mut u8,
 
-        j: &Journal<A>
+        j: &Journal<A>,
     ) -> Option<Self> {
-        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        {
             if !ptr.is_null() {
                 Some(Self::new_unchecked(ptr, j))
             } else {
@@ -217,7 +216,8 @@ impl<T: PSafe, A: MemPool> LogNonNull<T, A> {
             }
         }
 
-        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        {
             if !ptr.is_null() && !logged.is_null() {
                 Some(Self::new_unchecked(ptr, logged, j))
             } else {
@@ -230,7 +230,9 @@ impl<T: PSafe, A: MemPool> LogNonNull<T, A> {
 impl<T: PSafe + ?Sized, A: MemPool> Deref for LogNonNull<T, A> {
     type Target = T;
     #[inline]
-    fn deref(&self) -> &T { unsafe { &*self.ptr } }
+    fn deref(&self) -> &T {
+        unsafe { &*self.ptr }
+    }
 }
 
 impl<T: PSafe + ?Sized, A: MemPool> DerefMut for LogNonNull<T, A> {
@@ -238,11 +240,15 @@ impl<T: PSafe + ?Sized, A: MemPool> DerefMut for LogNonNull<T, A> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe {
             let value = &mut *self.ptr;
-            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
+            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+            {
                 use crate::ptr::Ptr;
-                use crate::stm::{Notifier, Logger};
+                use crate::stm::{Logger, Notifier};
                 if *self.logged == 0 {
-                    value.create_log(&*self.journal, Notifier::NonAtomic(Ptr::from_raw(self.logged)));
+                    value.create_log(
+                        &*self.journal,
+                        Notifier::NonAtomic(Ptr::from_raw(self.logged)),
+                    );
                 }
             }
             value
