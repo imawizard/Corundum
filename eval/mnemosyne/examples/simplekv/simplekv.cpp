@@ -38,7 +38,7 @@ void simple_kv<Value, N>::put(const std::string &key, const Value &val) {
         * bucket transactionally */
     auto elem = std::pair<key_type, std::size_t>(key, values.size() - 1);
     PTx {
-        values.push_back(val);        
+        values.push_back(val);
         buckets[index].push_back(elem);
     }
 }
@@ -117,4 +117,3 @@ int main(int argc, char *argv[])
 
     return 0;
 }
-

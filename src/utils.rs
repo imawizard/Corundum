@@ -128,7 +128,7 @@ impl<T, const N: usize> Ring<T, N> {
 
         #[cfg(not(feature = "no_flush_alloc"))]
         persist(&self.data[self.tail], 8, false);
-        
+
         self.tail = (self.tail + 1) % N;
 
         #[cfg(not(feature = "no_flush_alloc"))]

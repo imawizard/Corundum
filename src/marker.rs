@@ -1,5 +1,5 @@
 //! Corundum Markers
-//! 
+//!
 use crate::stm::Journal;
 use crate::alloc::MemPool;
 use std::task::Poll;
@@ -17,14 +17,14 @@ use std::fmt;
 /// Also, every type that allows interior mutability is not safe in persistence
 /// terms, because there might be no log of the value. Atomic types are
 /// persistence safe, even though they provide interior mutability.
-/// 
+///
 /// # Limitation
-/// 
+///
 /// Function pointers are not completely prevented. Due to Rust's limitation on
 /// declaring generic pointers to functions without exact number of arguments,
 /// we manually limit all pointers to functions with up to 32 arguments. Function
 /// pointers with a number of arguments beyond 32 are inevitably allowed.
-/// 
+///
 #[rustc_on_unimplemented(
     message = "`{Self}` is not safe to be stored in persistent memory",
     label = "`{Self}` is not safe to be stored in persistent memory"
@@ -117,7 +117,7 @@ pub unsafe auto trait TxInSafe {}
 
 /// The implementing type can be asserted [`TxInSafe`] albeit being `!TxInSafe`
 /// by using [`AssertTxInSafe`](./struct.AssertTxInSafe.html).
-/// 
+///
 /// [`TxInSafe`]: ./trait.TxInSafe.html
 #[rustc_on_unimplemented(
     message = "`{Self}` cannot be asserted as `TxInSafe`",
@@ -142,15 +142,15 @@ unsafe impl<T> LooseTxInUnsafe for *mut T {}
 /// specific usage of [`transaction`] if transaction inward safety is
 /// specifically taken into account. This wrapper struct is useful for a quick
 /// and lightweight annotation that a variable is indeed [`TxInSafe`] at the
-/// programmer's responsibilities. The `Journal` object cannot be wrapped by 
+/// programmer's responsibilities. The `Journal` object cannot be wrapped by
 /// `AssertTxInSafe` to make sure no inter-pool pointer can be made.
 ///
 /// # Examples
-/// 
+///
 /// You may wrap individual captures, as shown below. This ensures that if a new
 /// capture is added which is not [`TxInSafe`], you will get a compilation error
 /// at that time, which will allow you to consider whether that new capture in
-/// fact represent a bug or not. 
+/// fact represent a bug or not.
 ///
 /// ```
 /// use corundum::alloc::heap::*;
@@ -165,11 +165,11 @@ unsafe impl<T> LooseTxInUnsafe for *mut T {}
 ///         **wrapper += other_capture;
 ///     })
 /// };
-/// 
+///
 /// assert_eq!(variable, 7);
 /// // ...
 /// ```
-/// 
+///
 /// [`transaction`]: ./stm/fn.transaction.html
 /// [`TxInSafe`]: ./trait.TxInSafe.html
 pub struct AssertTxInSafe<T>(pub T);
@@ -203,7 +203,7 @@ where
     type Output = R;
 
     #[inline]
-    extern "rust-call" fn call_once(self, args: (&'static Journal<P>,)) -> R  
+    extern "rust-call" fn call_once(self, args: (&'static Journal<P>,)) -> R
     {
         (self.0)(args.0)
     }
@@ -238,11 +238,11 @@ unsafe impl<T: ?Sized> VSafe for &T {}
 unsafe impl<T: ?Sized> VSafe for &mut T {}
 
 /// Safe to be sent to another thread
-/// 
+///
 /// This marker is used to allow [`Parc`] to be sent to another thread only if
 /// it is wrapped in a [`VWeak`]. The [`Parc`] is not [`Send`] to prevent
 /// escaping a newly allocated instance of it from a transaction.
-/// 
+///
 /// [`Parc`]: ../sync/struct.Parc.html
 /// [`Send`]: ../trait.Send.html
 /// [`VWeak`]: ../sync/struct.VWeak.html
@@ -252,14 +252,12 @@ unsafe impl<T: ?Sized> VSafe for &mut T {}
 )]
 pub unsafe auto trait PSend {}
 
-
-
 #[derive(Default)]
 #[allow(non_camel_case_types)]
 pub struct c_void {}
 
 impl Copy for c_void {}
-impl Clone for c_void { 
+impl Clone for c_void {
     fn clone(&self) -> Self { Self { } }
 }
 

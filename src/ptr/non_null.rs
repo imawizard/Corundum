@@ -7,16 +7,16 @@ use std::ops::{Deref, DerefMut};
 
 #[derive(Eq)]
 /// An unsafe pointer with dereferencing capability
-/// 
+///
 /// This type is `!PSafe` and its constructor functions are `unsafe`. This is
 /// because of `NonNull` treating like a raw pointer. `NonNull` objects are
 /// useful for obtaining performance.
-/// 
+///
 /// [`PNonNull`] is an alias name in the pool module for `LogNonNull`.
-/// 
+///
 /// [`Prc`]: ../prc/struct.Prc.html
 /// [`PNonNull`]: ../alloc/default/type.PNonNull.html
-/// 
+///
 pub struct NonNull<T: PSafe + ?Sized> {
     ptr: *const T
 }
@@ -52,7 +52,7 @@ impl<T: PSafe> NonNull<T> {
         // SAFETY: the caller must guarantee that `ptr` is non-null.
         Self {
             ptr,
-        } 
+        }
     }
 
     /// Creates a `Some(NonNull)` if `ptr` is not null; otherwise `None`.
@@ -90,46 +90,46 @@ impl<T: fmt::Debug + PSafe + ?Sized> fmt::Debug for NonNull<T> {
 
 #[derive(Eq)]
 /// An unsafe pointer with dereferencing and logging capability
-/// 
+///
 /// This type is `!PSafe` and its constructor functions are `unsafe`. This is
 /// because of `LogNonNull` treating like a raw pointer. `LogNonNull` objects are
-/// useful for obtaining performance. [`PRefCell`]`::`[`as_non_null_mut()`] 
+/// useful for obtaining performance. [`PRefCell`]`::`[`as_non_null_mut()`]
 /// is an alternative to [`PRefCell`]`::`[`borrow_mut()`] which provides unsafe
 /// mutable access to the underlying data.
-/// 
+///
 /// [`PNonNullMut`] is an alias name in the pool module for `LogNonNullMut`.
-/// 
+///
 /// [`PNonNullMut`]: ../alloc/default/type.PNonNullMut.html
-/// 
+///
 /// # Safety
-/// 
+///
 /// * As in raw pointers, `LogNonNull` is `Copy` and is not bounded to a specific
 /// lifetime.
 /// * It does not follow the borrow mechanism and thus multiple mutable access is
 /// possible.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// use corundum::default::*;
 /// use corundum::ptr::LogNonNull;
-/// 
+///
 /// type P = Allocator;
-/// 
+///
 /// fn multiply(mut obj: LogNonNull<i32,P>, m: i32) {
 ///     // Takes a log if required and then provides mut ref to the object
 ///     *obj *= m;
 /// }
-/// 
+///
 /// let root = P::open::<PRefCell<i32>>("foo.pool", O_CF).unwrap();
-/// 
+///
 /// P::transaction(|j| {
 ///     let mut borrow = root.borrow_mut(j);
 ///     *borrow = 5;
-/// 
+///
 ///     multiply( unsafe { root.as_non_null_mut(j) }, 10 );
 /// }).unwrap();
-/// 
+///
 /// assert_eq!(*root.borrow(), 50);
 /// ```
 ///
@@ -137,7 +137,7 @@ impl<T: fmt::Debug + PSafe + ?Sized> fmt::Debug for NonNull<T> {
 /// [`as_non_null_mut()`]: ../cell/struct.PRefCell.html#method.as_non_null_mut
 /// [`borrow_mut()`]: ../cell/struct.PRefCell.html#method.borrow_mut
 /// [`PNonNullMut`]: ../alloc/default/type.PNonNullMut.html
-/// 
+///
 pub struct LogNonNull<T: PSafe + ?Sized, A: MemPool> {
     ptr: *mut T,
     journal: *const Journal<A>,
@@ -195,9 +195,9 @@ impl<T: PSafe, A: MemPool> LogNonNull<T, A> {
 
             #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
             logged,
-            
+
             phantom: PhantomData
-        } 
+        }
     }
 
     /// Creates a `Some(LogNonNull)` if `ptr` is not null; otherwise `None`.

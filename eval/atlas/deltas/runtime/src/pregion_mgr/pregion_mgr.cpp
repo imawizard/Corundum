@@ -12,7 +12,6 @@
  * General Public License along with this program. If not, see
  * <http://www.gnu.org/licenses/>.
  */
- 
 
 #include <iostream>
 #include <cstdio>
@@ -39,12 +38,12 @@
 #endif
 
 namespace Atlas {
-    
+
 PRegionMgr *PRegionMgr::Instance_{nullptr};
 
 ///
 /// Entry point for freeing a persistent location
-///    
+///
 void PRegionMgr::freeMem(void *ptr, bool should_log) const
 {
 #ifdef _FORCE_FAIL
@@ -61,7 +60,7 @@ void PRegionMgr::freeMem(void *ptr, bool should_log) const
 
 ///
 /// Entry point for deleting a persistent location
-///    
+///
 void PRegionMgr::deleteMem(void *ptr, bool should_log) const
 {
 #ifdef _FORCE_FAIL
@@ -82,17 +81,17 @@ region_id_t rgn_id, void *ptr, bool should_log) const
                 ptr, PMallocUtil::get_actual_alloc_size(
                     PMallocUtil::get_requested_alloc_size_from_ptr(ptr))) ==
             rgn_id) && "Location to be freed crosses regions!");
-    
+
     PRegion *preg = getPRegion(rgn_id);
     assert((!preg->is_deleted() && preg->is_mapped()) &&
            "Pointer to be freed belongs to a deleted or unmapped region!");
     preg->freeMem(ptr, should_log);
 }
-    
+
 ///
 /// Given a persistent region name and corresponding attributes,
 /// return its id, creating it if necessary
-///    
+///
 region_id_t PRegionMgr::findOrCreatePRegion(
     const char *name, int flags, int *is_created)
 {
@@ -102,13 +101,13 @@ region_id_t PRegionMgr::findOrCreatePRegion(
     assert(name);
     assert(std::strlen(name) < kMaxlen_+1);
 
-    acquireTableLock(); 
+    acquireTableLock();
     acquireExclusiveFLock();
 
     PRegion *rgn = searchPRegion(name);
     if (rgn && !rgn->is_deleted()) {
         initExistingPRegionImpl(rgn, name, flags);
-        
+
         releaseFLock();
         releaseTableLock();
 
@@ -116,7 +115,7 @@ region_id_t PRegionMgr::findOrCreatePRegion(
 
         tracePRegion(rgn->get_id(), kFind_);
         statsPRegion(rgn->get_id());
-        
+
         return rgn->get_id();
     }
     else if (rgn) { // previously deleted region
@@ -131,12 +130,12 @@ region_id_t PRegionMgr::findOrCreatePRegion(
 
         tracePRegion(rgn->get_id(), kCreate_);
         statsPRegion(rgn->get_id());
-        
+
         return rgn->get_id();
     }
     else {
         region_id_t rgn_id = initNewPRegionImpl(name, flags);
-        
+
         releaseFLock();
         releaseTableLock();
 
@@ -144,14 +143,14 @@ region_id_t PRegionMgr::findOrCreatePRegion(
 
         tracePRegion(rgn_id, kCreate_);
         statsPRegion(rgn_id);
-        
+
         return rgn_id;
     }
 }
 
 ///
 /// Find a persistent region by its name and return its id
-///    
+///
 region_id_t PRegionMgr::findPRegion(const char *name, int flags,
                                     bool is_in_recovery)
 {
@@ -187,16 +186,16 @@ region_id_t PRegionMgr::findPRegion(const char *name, int flags,
         releaseFLock();
         releaseTableLock();
     }
-    
+
     tracePRegion(rgn->get_id(), kFind_);
     statsPRegion(rgn->get_id());
-    
+
     return rgn->get_id();
 }
 
 ///
 /// Create a new persistent region with the given name and attributes
-///    
+///
 region_id_t PRegionMgr::createPRegion(const char *name, int flags)
 {
 #ifdef _FORCE_FAIL
@@ -225,14 +224,14 @@ region_id_t PRegionMgr::createPRegion(const char *name, int flags)
 
     tracePRegion(rgn_id, kCreate_);
     statsPRegion(rgn_id);
-    
+
     return rgn_id;
 }
 
 ///
 /// Remove the mappings of a persistent region from memory. It cannot
 /// be subsequently used without "finding" it again.
-///    
+///
 void PRegionMgr::closePRegion(region_id_t rid, bool is_deleting)
 {
 #ifdef _FORCE_FAIL
@@ -242,7 +241,7 @@ void PRegionMgr::closePRegion(region_id_t rid, bool is_deleting)
         acquireTableLock();
         acquireExclusiveFLock();
     }
-    
+
     PRegion *preg = getPRegion(rid);
     assert(preg && "Region to be closed not found!");
     assert((is_deleting || !preg->is_deleted()) &&
@@ -256,9 +255,9 @@ void PRegionMgr::closePRegion(region_id_t rid, bool is_deleting)
     }
     preg->set_is_mapped(false);
     close(preg->get_file_desc());
-    
+
     preg->~PRegion();
-    
+
     if (!is_deleting) {
         releaseFLock();
         releaseTableLock();
@@ -271,7 +270,7 @@ void PRegionMgr::closePRegion(region_id_t rid, bool is_deleting)
 ///
 /// Delete a persistent region by name. All data within it will
 /// disappear as well
-///    
+///
 void PRegionMgr::deletePRegion(const char *name)
 {
 #ifdef _FORCE_FAIL
@@ -279,7 +278,7 @@ void PRegionMgr::deletePRegion(const char *name)
 #endif
     assert(name);
     assert(std::strlen(name) < kMaxlen_+1);
-    
+
     acquireTableLock();
     acquireExclusiveFLock();
 
@@ -300,7 +299,7 @@ void PRegionMgr::deletePRegion(const char *name)
     char *parent = strdup(s);
     fsync_dir(parent);
     free(parent);
-#endif    
+#endif
     free(s);
 
     releaseFLock();
@@ -311,7 +310,7 @@ void PRegionMgr::deletePRegion(const char *name)
 
 ///
 /// Delete a persistent region without considering its attributes
-///    
+///
 void PRegionMgr::deleteForcefullyPRegion(const char *name)
 {
 #ifdef _FORCE_FAIL
@@ -319,7 +318,7 @@ void PRegionMgr::deleteForcefullyPRegion(const char *name)
 #endif
     assert(name);
     assert(std::strlen(name) < kMaxlen_+1);
-    
+
     acquireTableLock();
     acquireExclusiveFLock();
 
@@ -327,7 +326,7 @@ void PRegionMgr::deleteForcefullyPRegion(const char *name)
     assert(preg && "Region to be deleted forcefully not found!");
 
     deleteForcefullyPRegion(preg);
-    
+
     releaseFLock();
     releaseTableLock();
 }
@@ -347,13 +346,13 @@ void PRegionMgr::deleteForcefullyPRegion(PRegion *preg)
     char *parent = strdup(s);
     fsync_dir(parent);
     free(parent);
-#endif    
+#endif
     free(s);
 }
 
 ///
 /// Delete all persistent regions without considering their attributes
-///    
+///
 void PRegionMgr::deleteForcefullyAllPRegions()
 {
 #ifdef _FORCE_FAIL
@@ -376,14 +375,14 @@ void PRegionMgr::deleteForcefullyAllPRegions()
 
 ///
 /// Set the root of a region to the provided new root.
-///    
+///
 void PRegionMgr::setPRegionRoot(region_id_t rid, void *new_root) const
 {
 #ifdef _FORCE_FAIL
     fail_program();
 #endif
     // This must act like a release operation so that all prior
-    // writes to NVRAM are flushed out. 
+    // writes to NVRAM are flushed out.
     if (LogMgr::hasInstance())
         LogMgr::getInstance().flushAtEndOfFase();
 
@@ -396,7 +395,7 @@ void PRegionMgr::setPRegionRoot(region_id_t rid, void *new_root) const
 
 ///
 /// Set the number of persistent regions to count
-///    
+///
 void PRegionMgr::setNumPRegions(uint32_t count)
 {
 #ifdef _FORCE_FAIL
@@ -407,11 +406,11 @@ void PRegionMgr::setNumPRegions(uint32_t count)
     *(static_cast<uint32_t*>(PRegionTable_)) = count;
     NVM_FLUSH(PRegionTable_);
 }
-    
+
 ///
 /// Initialize the metadata for the persistent regions. The metadata
 /// itself is persistent and resides at a fixed address.
-///    
+///
 void PRegionMgr::initPRegionTable()
 {
 #ifdef _FORCE_FAIL
@@ -419,7 +418,7 @@ void PRegionMgr::initPRegionTable()
 #endif
     NVM_CreateUserDir();
     NVM_CreateLogDir(); // TODO rename to RegionDir
-    
+
     char *region_table_name = NVM_GetRegionTablePath();
 
     struct stat stat_buffer;
@@ -438,7 +437,7 @@ void PRegionMgr::initPRegionTable()
 
 ///
 /// Remove the mappings of the persistent region metadata from memory
-///    
+///
 void PRegionMgr::shutPRegionTable()
 {
 #ifdef _FORCE_FAIL
@@ -455,7 +454,7 @@ void PRegionMgr::shutPRegionTable()
 /// The next few routines map a persistent region into a process
 /// address space and insert the available address range into the
 /// region manager metadata
-///    
+///
 region_id_t PRegionMgr::initNewPRegionImpl(const char *name, int flags)
 {
 #ifdef _FORCE_FAIL
@@ -465,7 +464,7 @@ region_id_t PRegionMgr::initNewPRegionImpl(const char *name, int flags)
     region_id_t rgn_id = mapNewPRegion(name, flags, base_addr);
     return rgn_id;
 }
-    
+
 region_id_t PRegionMgr::mapNewPRegion(
     const char *name, int flags, void *base_addr)
 {
@@ -488,7 +487,7 @@ region_id_t PRegionMgr::mapNewPRegion(
 // TODO: bug fix: this routine is not failure-atomic. The fix is to
 // change the region ctor to set the deleted bit to true. Then once
 // all the changes below are done, set the deleted bit to
-// false. 
+// false.
 void PRegionMgr::mapNewPRegionImpl(
     PRegion *rgn, const char *name, region_id_t rid,
     int flags, void *base_addr)
@@ -505,12 +504,12 @@ void PRegionMgr::mapNewPRegionImpl(
         mapFile(fully_qualified_name, flags, base_addr, does_exist));
 
     insertExtent(base_addr, (char*)base_addr + kPRegionSize_ - 1, rid);
-    
+
     free(fully_qualified_name);
-    
+
     initPRegionRoot(rgn);
 }
-    
+
 void PRegionMgr::initExistingPRegionImpl(
     PRegion *preg, const char *name, int flags)
 {
@@ -523,7 +522,7 @@ void PRegionMgr::initExistingPRegionImpl(
 
     mapExistingPRegion(preg, name, flags);
 }
-    
+
 void PRegionMgr::mapExistingPRegion(PRegion *preg, const char *name, int flags)
 {
 #ifdef _FORCE_FAIL
@@ -531,7 +530,7 @@ void PRegionMgr::mapExistingPRegion(PRegion *preg, const char *name, int flags)
 #endif
     preg->initArenaTransients();
     PMallocUtil::set_default_tl_curr_arena(preg->get_id());
-    
+
     bool does_exist = true;
 
     char *fully_qualified_name = NVM_GetFullyQualifiedRegionName(name);
@@ -541,7 +540,7 @@ void PRegionMgr::mapExistingPRegion(PRegion *preg, const char *name, int flags)
     insertExtent(preg->get_base_addr(),
                  (char*)preg->get_base_addr() + kPRegionSize_ - 1,
                  preg->get_id());
-    
+
     free(fully_qualified_name);
 
     preg->set_is_mapped(true);
@@ -557,7 +556,7 @@ int PRegionMgr::mapFile(
         name, does_exist ? flags : flags |
 #ifdef _NVDIMM_PROLIANT
         // O_DIRECT |
-#endif        
+#endif
         O_CREAT,
         flags == O_RDONLY  ? S_IRUSR : (S_IRUSR | S_IWUSR));
     if (fd == -1) {
@@ -594,13 +593,13 @@ int PRegionMgr::mapFile(
         fsync_paranoid(name);
     }
 #endif
-    
+
     return fd;
 }
 
 ///
 /// Initialize the persistent region root
-///    
+///
 void PRegionMgr::initPRegionRoot(PRegion *preg)
 {
     intptr_t *root_ptr = static_cast<intptr_t*>(preg->allocRoot());
@@ -612,7 +611,7 @@ void PRegionMgr::initPRegionRoot(PRegion *preg)
 ///
 /// Given a name, search the persistent region metadata and return a
 /// pointer to the corresponding metadata entry if it exists
-///    
+///
 PRegion* PRegionMgr::searchPRegion(const char *name) const
 {
 #ifdef _FORCE_FAIL
@@ -629,7 +628,7 @@ PRegion* PRegionMgr::searchPRegion(const char *name) const
 ///
 /// Given a memory address and a size, return the id of the open
 /// persistent region that it belongs to
-///    
+///
 region_id_t PRegionMgr::getOpenPRegionId(
     const void *addr, size_t sz) const {
     return ExtentMap_.load(std::memory_order_acquire)->findExtent(
@@ -640,7 +639,7 @@ region_id_t PRegionMgr::getOpenPRegionId(
 ///
 /// Given an address, make sure that the persistent regions it belongs
 /// to is mapped
-///    
+///
 std::pair<void*,region_id_t> PRegionMgr::ensurePRegionMapped(void *addr)
 {
 #ifdef _FORCE_FAIL
@@ -649,14 +648,14 @@ std::pair<void*,region_id_t> PRegionMgr::ensurePRegionMapped(void *addr)
     region_id_t rgn_id = getOpenPRegionId(addr, 1 /* dummy */);
     if (rgn_id != kInvalidPRegion_)
         return std::make_pair(getPRegion(rgn_id)->get_base_addr(), rgn_id);
-    
+
     PRegion *curr_rgn = getPRegionArrayPtr();
     uint32_t num_rgn = getNumPRegions();
     uint32_t curr = 0;
     for(; curr < num_rgn; ++curr, ++curr_rgn) {
         if (curr_rgn->is_deleted()) continue;
 
-        if (addr >= curr_rgn->get_base_addr() && 
+        if (addr >= curr_rgn->get_base_addr() &&
             static_cast<char*>(addr) <
             static_cast<char*>(curr_rgn->get_base_addr())+kPRegionSize_) {
             initExistingPRegionImpl(curr_rgn, curr_rgn->get_name(), O_RDWR);
@@ -672,7 +671,6 @@ std::pair<void*,region_id_t> PRegionMgr::ensurePRegionMapped(void *addr)
     return std::make_pair(nullptr, kInvalidPRegion_);
 }
 
-    
 ///
 /// Add a range of addresses and the corresponding region id to the
 /// region manager metadata
@@ -700,7 +698,7 @@ void PRegionMgr::insertExtent(
 
 /// Delete a range of addresses and the corresponding region id from
 /// the region manager metadata
-///    
+///
 
 // The following assumes interference-freedom, i.e. a lock must be held
 
@@ -742,11 +740,11 @@ int PRegionMgr::getCacheLineSize() const
     return size;
 }
 
-void PRegionMgr::setCacheParams() 
+void PRegionMgr::setCacheParams()
 {
     uint32_t cache_line_size = getCacheLineSize();
     PMallocUtil::set_cache_line_size(cache_line_size);
     PMallocUtil::set_cache_line_mask(0xffffffffffffffff - cache_line_size + 1);
 }
-    
+
 } // namespace Atlas

@@ -129,7 +129,7 @@ where
         self.put_once(key, f(), j)
     }
 
-    pub fn get_or_insert_with_hash<Key, F: FnOnce()->V>(&mut self, key: Key, key_hash: u64, f: F, j: &Journal<P>) -> &V 
+    pub fn get_or_insert_with_hash<Key, F: FnOnce()->V>(&mut self, key: Key, key_hash: u64, f: F, j: &Journal<P>) -> &V
     where K: PartialEq<Key> + PFrom<Key, P>
     {
         let index = (key_hash as usize) % BUCKETS_MAX;

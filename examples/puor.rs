@@ -27,7 +27,7 @@ fn main() {
         println!("  -i <num>   Initial value (default: 1000000)");
         println!("  -t <num>   Number of threads (default: 4)");
         println!("  -r         Reset");
-        return;  
+        return;
     }
 
     let root = P::open::<Root>(&args[1], O_CFNE | O_4GB).unwrap();
@@ -101,7 +101,7 @@ fn main() {
                         0
                     }
                 }).unwrap();
-    
+
                 if b == 0 { break }
 
                 P::transaction(move |j| {

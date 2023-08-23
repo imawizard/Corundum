@@ -1,5 +1,5 @@
 Import('examplesEnv')
-  
+
 myEnv = examplesEnv.Clone()
 
 if myEnv['BUILD_PVAR'] == True:

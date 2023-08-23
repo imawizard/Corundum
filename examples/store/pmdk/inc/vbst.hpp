@@ -20,7 +20,7 @@ public:
 	vbst() { head = nullptr; }
 
 	friend void perform_vbst(vector<string> args);
-    
+
 private:
     void insert_impl(pmem_entry *&node, uint64_t value) {
         if (node == nullptr) {

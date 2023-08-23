@@ -69,7 +69,7 @@ fn pclone_all_fields(ident: &Ident, data: &Data) -> TokenStream2 {
                     });
                     quote! {
                         Self {
-                            #(#recurse,)* 
+                            #(#recurse,)*
                         }
                     }
                 }
@@ -109,7 +109,7 @@ fn pclone_all_fields(ident: &Ident, data: &Data) -> TokenStream2 {
                         });
                         let clones = recurse.clone();
                         quote! {
-                            #ident::#variant(#(#recurse,)*) => 
+                            #ident::#variant(#(#recurse,)*) =>
                                 #ident::#variant(#(corundum::PClone::pclone(&#clones, j),)*)
                         }
                     },
@@ -129,7 +129,7 @@ fn pclone_all_fields(ident: &Ident, data: &Data) -> TokenStream2 {
                             }
                         });
                         quote! {
-                            #ident::#variant{#(#recurse,)*} => 
+                            #ident::#variant{#(#recurse,)*} =>
                             #ident::#variant{#(#clones,)*}
                         }
                     }
@@ -137,7 +137,7 @@ fn pclone_all_fields(ident: &Ident, data: &Data) -> TokenStream2 {
             });
             quote! {
                 match self {
-                    #(#res,)* 
+                    #(#res,)*
                 }
             }
         }

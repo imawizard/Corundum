@@ -9,15 +9,15 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 /// Root object container
-/// 
+///
 /// The return value of pool's [`open()`] function is a `RootCell<T>` which
 /// contains a reference to the root object of type `T` and a reference counting
 /// object of pool type. When there is no more reference to the `RootCell`, it
 /// closes the underlying pool.
-/// 
+///
 /// The root object is immutable; modifications to the root object can be
 /// provided via interior mutability.
-/// 
+///
 /// [`open()`]: ../alloc/trait.MemPool.html#method.open
 pub struct RootCell<'a, T: 'a, A: MemPool>(&'a T, Arc<PoolGuard<A>>);
 
@@ -90,11 +90,11 @@ impl<T: Display + PSafe, A: MemPool> Display for RootCell<'_, T, A> {
 }
 
 /// Creates a default value of the type
-/// 
+///
 /// The root type should implement this trait or trait [`Default`] to be able to
 /// initialize the root object for the first time. Every type implementing
 /// [`Default`] is already implementing `RootObj`, by default.
-/// 
+///
 /// [`Default`]: std::default::Default
 pub trait RootObj<A: MemPool> {
     fn init(journal: &Journal<A>) -> Self;

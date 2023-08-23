@@ -37,7 +37,7 @@ impl<T, F: FnOnce() -> T> LazyCell<T, F> {
 
 impl<T, F: FnOnce() -> T> Deref for LazyCell<T, F> {
     type Target = T;
-    
+
     #[track_caller]
     fn deref(&self) -> &T {
         Self::force(self)

@@ -6,32 +6,32 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 /// A persistent memory location containing a volatile data
-/// 
+///
 /// The underlying data is valid throughout of the course of a single pool
 /// lifetime. When the pool is reopened, the data is back to its default value.
 /// Type `T` in `VCell<T>` should implement [`Default`] and [`VSafe`].
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// use corundum::default::*;
 /// use std::cell::RefCell;
-/// 
+///
 /// type P = Allocator;
-/// 
+///
 /// #[derive(Default)]
 /// struct Root {
 ///     v: VCell<RefCell<i32>>
 /// }
 ///
 /// let root = P::open::<Root>("foo.pool", O_CF).unwrap();
-///     
+///
 /// let mut v = root.v.borrow_mut();
 /// assert_eq!(*v, i32::default());
 /// *v = 20; // This value is volatile and resets on restart
 /// assert_eq!(*v, 20);
 /// ```
-/// 
+///
 /// [`Default`]: std::default::Default
 /// [`VSafe`]: ../trait.VSafe.html
 pub struct VCell<T: Default + VSafe + ?Sized, A: MemPool> {

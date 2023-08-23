@@ -135,7 +135,7 @@ func btree_map_create_split_node(node *node_t, m *item) *node_t {
 /*
  * btree_map_find_dest_node -- (internal) finds a place to insert the new key at
  */
-func btree_map_find_dest_node(ptr *data, n *node_t, 
+func btree_map_find_dest_node(ptr *data, n *node_t,
 	parent *node_t, key int, p *int) *node_t {
 	if n.n == BTREE_ORDER - 1 { /* node_t is full, perform a split */
 		var m item
@@ -637,4 +637,3 @@ func main() {
 		}
 	}
 }
-

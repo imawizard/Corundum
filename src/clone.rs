@@ -21,7 +21,7 @@ use crate::PSafe;
 /// This trait can be used with `#[derive]` if all fields are `PClone`. The
 /// `derive`d implementation of [`PClone`] calls [`pclone`] on each field. It
 /// uses [`default::Allocator`] by default. It is possible to change the pool
-/// type(s) by using `pools()` attribute. 
+/// type(s) by using `pools()` attribute.
 ///
 /// [`pclone`]: #method.pclone
 /// [`Prc`]: ../prc/struct.Prc.html
@@ -33,20 +33,20 @@ use crate::PSafe;
 ///
 /// ```
 /// # use corundum::*;
-/// // `derive` implements PClone<Allocator> for Reading<T> when T is 
+/// // `derive` implements PClone<Allocator> for Reading<T> when T is
 /// // PClone<Allocator>
 /// #[derive(PClone)]
 /// struct Reading<T> {
 ///     frequency: T,
 /// }
 /// ```
-/// 
+///
 /// ```
 /// # use corundum::*;
 /// # use corundum::alloc::heap::*;
 /// # pool!(p); type P = p::Allocator;
 /// # pool!(q); type Q = q::Allocator;
-/// // `derive` implements PClone<P> and PClone<Q> for Reading<T> when T is 
+/// // `derive` implements PClone<P> and PClone<Q> for Reading<T> when T is
 /// // PClone<P> and PClone<Q> specified by `pools`.
 /// #[derive(PClone)]
 /// #[pools(P,Q)]

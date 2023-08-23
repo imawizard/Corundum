@@ -50,7 +50,7 @@ public:
     friend class string;
 };
 
-class string 
+class string
 {
 private:
     vector<char> vec;
@@ -88,7 +88,7 @@ public:
     }
 };
 
-class fix_string 
+class fix_string
 {
 private:
     char data[32];

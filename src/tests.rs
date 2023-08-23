@@ -21,7 +21,6 @@ pub(crate) mod problems {
         }).unwrap();
     }
 
-
     #[test]
     fn abort_txn_test() {
         use crate::default::*;
@@ -329,17 +328,17 @@ pub(crate) mod problems {
 
             println!("a initial rc count = {}", Prc::strong_count(&a));
             println!("a next item = {:?}", a.tail());
-        
+
             let b = Prc::new(Cons(10, PRefCell::new(Prc::pclone(&a, j))), j);
-        
+
             println!("a rc count after b creation = {}", Prc::strong_count(&a));
             println!("b initial rc count = {}", Prc::strong_count(&b));
             println!("b next item = {:?}", b.tail());
-        
+
             if let Some(link) = a.tail() {
                 *link.borrow_mut(j) = Prc::pclone(&b, j);
             }
-        
+
             println!("b rc count after changing a = {}", Prc::strong_count(&b));
             println!("a rc count after changing a = {}", Prc::strong_count(&a));
         }).unwrap();
@@ -380,7 +379,7 @@ pub(crate) mod problems {
                 } else {
                     println!("no data");
                 }
-                
+
                 // Dropping the old Prc
                 let mut b = root.v.borrow_mut(j);
                 *b = Prc::new(12, j);
@@ -495,7 +494,7 @@ pub(crate) mod problems {
             let mut e = new.borrow_mut(j);
             *e = 30; // The original PRefCell won't change
 
-            // `d` is still available here 
+            // `d` is still available here
         }).unwrap();
 
         assert_eq!(25, *root.borrow());
@@ -563,7 +562,7 @@ pub(crate) mod problems {
                 }
             });
         });
-        
+
         let t2 = std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(25));
             let _ = P::transaction(|j| {
@@ -1333,7 +1332,7 @@ pub(crate) mod test {
 
     //     macro_rules! verify {
     //         ($a:expr) => {
-                
+
     //         };
     //     }
 
@@ -1522,7 +1521,6 @@ pub(crate) mod test {
         .unwrap();
     }
 
-
     #[test]
     fn parc_heap() {
         Heap::transaction(|j| {
@@ -1705,7 +1703,7 @@ pub(crate) mod test {
         }
         // for _ in 0..100 {
         let sb = A::open::<SB>("sb20.pool", O_CFNE).unwrap();
-        
+
         let mut threads = vec![];
         print_usage(0);
         let mut v = vec![];

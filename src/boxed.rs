@@ -24,24 +24,24 @@ use std::ptr::{self, NonNull};
 /// `Pbox` become mutably available. The log taken for interior mutability works
 /// only on the pointer value and does not include the referent object. Therefore,
 /// `Pbox` provides a logging mechanism to provide mutable dereferencing.
-/// 
+///
 /// # Examples
-/// 
+///
 /// Create a boxed object in the persistent memory
-/// 
+///
 /// ```
 /// use corundum::default::*;
 ///
 /// type P = Allocator;
 ///
 /// let _p = P::open_no_root("foo.pool", O_CF).unwrap();
-/// 
+///
 /// transaction(|j| {
 ///     let five = Pbox::new(5, j);
 ///     assert_eq!(*five, 5);
 /// }).unwrap();
 /// ```
-/// 
+///
 /// # Examples
 ///
 /// Move a value from the stack to the persistent memory by creating a `Pbox`:
@@ -96,12 +96,12 @@ use std::ptr::{self, NonNull};
 /// Cons(T, List<T>),
 /// # }
 /// ```
-/// 
+///
 /// It wouldn't work. This is because the size of a `List` depends on how many
 /// elements are in the list, and so we don't know how much memory to allocate
 /// for a `Cons`. By introducing a `Pbox<T>`, which has a defined size, we know
 /// how big `Cons` needs to be.
-/// 
+///
 /// [`PCell`]: ../cell/struct.PCell.html
 /// [`PRefCell`]: ../cell/struct.PRefCell.html
 /// [`Logger`]: ../stm/trait.Logger.html
@@ -143,23 +143,23 @@ impl<T: PSafe, A: MemPool> Pbox<T, A> {
     }
 
     /// Constructs a new Pbox with uninitialized contents.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use corundum::default::*;
     /// # type P = Allocator;
     /// # let _p = P::open_no_root("foo.pool", O_CF).unwrap();
     /// P::transaction(|j| {
     ///     let mut five = Pbox::<u32>::new_uninit(j);
-    ///     
+    ///
     ///     let five = unsafe {
     ///         // Deferred initialization:
     ///         five.as_mut_ptr().write(5);
-    ///     
+    ///
     ///         five.assume_init()
     ///     };
-    ///     
+    ///
     ///     assert_eq!(*five, 5)
     /// }).unwrap()
     /// ```
@@ -238,13 +238,13 @@ impl<T: PSafe, A: MemPool> Pbox<T, A> {
     ///
     /// ```
     /// use corundum::default::*;
-    /// 
+    ///
     /// type P = Allocator;
     ///
     /// let root = P::open::<Option<Pbox<i32>>>("foo.pool", O_CF).unwrap();
     ///
     /// Pbox::initialize(&*root, 25);
-    /// 
+    ///
     /// let value = **root.as_ref().unwrap();
     /// assert_eq!(value, 25);
     /// ```
@@ -370,10 +370,10 @@ impl<T: PSafe + ?Sized, A: MemPool> Pbox<T, A> {
     /// is so that there is no conflict with a method on the inner type.
     ///
     /// # Safety
-    /// 
+    ///
     /// This function is considered unsafe in persistent memory programming
     /// because memory leak is permanent and undesirable.
-    /// 
+    ///
     /// [`Pbox::from_raw`]: struct.Pbox.html#method.from_raw
     ///
     /// # Examples
@@ -462,10 +462,10 @@ impl<T: PSafe + PClone<A> + ?Sized, A: MemPool> PClone<A> for Pbox<T, A> {
     /// Heap::transaction(|j| {
     ///     let x = Pbox::new(5, j);
     ///     let y = x.pclone(j);
-    ///     
+    ///
     ///     // The value is the same
     ///     assert_eq!(x, y);
-    ///     
+    ///
     ///     // But they are unique objects
     ///     assert_ne!(&*x as *const i32, &*y as *const i32);
     /// }).unwrap();

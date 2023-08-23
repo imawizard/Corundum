@@ -69,7 +69,7 @@ fn root_all_fields(ident: &Ident, data: &Data) -> TokenStream2 {
                     });
                     quote! {
                         Self {
-                            #(#recurse,)* 
+                            #(#recurse,)*
                         }
                     }
                 }
@@ -108,7 +108,7 @@ fn root_all_fields(ident: &Ident, data: &Data) -> TokenStream2 {
                         });
                         let ints = recurse.clone();
                         quote! {
-                            #ident::#variant(#(#recurse,)*) => 
+                            #ident::#variant(#(#recurse,)*) =>
                                 #ident::#variant(#(corundum::RootObj::init(&#ints, j),)*)
                         }
                     },
@@ -127,7 +127,7 @@ fn root_all_fields(ident: &Ident, data: &Data) -> TokenStream2 {
                             }
                         });
                         quote! {
-                            #ident::#variant{#(#recurse,)*} => 
+                            #ident::#variant{#(#recurse,)*} =>
                             #ident::#variant{#(#clones,)*}
                         }
                     }
@@ -135,7 +135,7 @@ fn root_all_fields(ident: &Ident, data: &Data) -> TokenStream2 {
             });
             quote! {
                 match self {
-                    #(#res,)* 
+                    #(#res,)*
                 }
             }
         }

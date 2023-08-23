@@ -20,7 +20,7 @@ use std::ptr::NonNull;
 /// [`Pbox<T,P>`]: ../boxed/struct.Pbox.html
 /// [`Vec<T,P>`]: ../vec/struct.Vec.html
 /// [`String<P>`]: ../str/struct.String.html
-/// 
+///
 pub struct Ptr<T: ?Sized, A: MemPool> {
     off: u64,
     marker: PhantomData<(A, T)>,
@@ -142,7 +142,6 @@ impl<A: MemPool, T: ?Sized> Ptr<T, A> {
     pub fn off(&self) -> u64 {
         self.off
     }
-
 
     #[inline]
     /// Returns a reference to the file offset
@@ -270,7 +269,7 @@ impl<A: MemPool, T: PSafe> PmemUsage for Ptr<T, A> {
     }
 }
 
-impl<A: MemPool, T: ?Sized> Ptr<T, A> {    
+impl<A: MemPool, T: ?Sized> Ptr<T, A> {
     #[inline]
     #[track_caller]
     pub unsafe fn from_raw(other: *const T) -> Self {
@@ -284,7 +283,7 @@ impl<A: MemPool, T: ?Sized> Ptr<T, A> {
             marker: PhantomData,
         }
     }
-    
+
     #[inline]
     #[track_caller]
     pub(crate) fn from_ref(other: &T) -> Self {
@@ -293,7 +292,7 @@ impl<A: MemPool, T: ?Sized> Ptr<T, A> {
             marker: PhantomData,
         }
     }
-    
+
     #[inline]
     #[track_caller]
     pub(crate) fn from_mut(other: &mut T) -> Self {
@@ -302,7 +301,7 @@ impl<A: MemPool, T: ?Sized> Ptr<T, A> {
             marker: PhantomData,
         }
     }
-    
+
     #[inline]
     #[track_caller]
     pub(crate) fn from_non_null(other: NonNull<T>) -> Self {

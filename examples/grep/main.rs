@@ -126,7 +126,7 @@ fn main() {
             }
         }
     }
-    
+
     let root = P::open::<Root>(&pool, O_CFNE | O_1GB).unwrap();
 
     P::transaction(|j| {
@@ -248,7 +248,7 @@ fn main() {
         }
 
         eprintln!();
-        
+
         if dist {
             let mut i=0;
             for c in &*consumers {

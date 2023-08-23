@@ -6,10 +6,10 @@ mod run {
     use corundum::stat::*;
     use corundum::open_flags::*;
     use corundum::stm::{Log, Logger, Notifier};
-    
+
     type P = Allocator;
     const CNT: usize = 50000;
-    
+
     macro_rules! datalog {
         ($cnt:expr,$s:expr) => {
             P::transaction(|j| unsafe {
@@ -27,26 +27,26 @@ mod run {
             }).unwrap();
         };
     }
-    
+
     fn main() {
         use std::env;
         use std::vec::Vec as StdVec;
-    
+
         let args: StdVec<String> = env::args().collect();
-    
+
         if args.len() < 2 {
             println!("usage: {} file-name", args[0]);
             return;
         }
-    
+
         let sizes = vec![512, 128, 32, 8, 1];
-    
+
         struct Root {
             bx: PRefCell<PVec<Option<Pbox<i32>>>>,
             rc: PRefCell<PVec<Option<Prc<i32>>>>,
             arc: PRefCell<PVec<Option<Parc<i32>>>>,
         }
-    
+
         impl RootObj<P> for Root {
             fn init(j: &Journal) -> Self {
                 let mut b = PVec::with_capacity(CNT, j);
@@ -68,7 +68,7 @@ mod run {
                 }
             }
         }
-    
+
         let root = P::open::<Root>(&args[1], O_CF | O_32GB).unwrap();
         let cnt = CNT;
         for _ in 0..cnt {
@@ -81,7 +81,7 @@ mod run {
                 P::transaction(|_| {unsafe { asm!("nop"); }}).unwrap();
             });
         }
-    
+
         for s in &sizes {
             let s = *s * 8;
             let mut vec = Vec::with_capacity(cnt);
@@ -96,7 +96,7 @@ mod run {
                 });
             }
         }
-    
+
         {
             let b = &*root.bx.borrow();
             for i in 0..cnt {
@@ -120,7 +120,7 @@ mod run {
                 }).unwrap();
             }
         }
-    
+
         for _ in 0 .. CNT/50 {
             let cnt = 50;
             P::transaction(|j| {
@@ -163,13 +163,13 @@ mod run {
                     println!("unreachable {}", m);
                 }
             }).unwrap();
-    
+
             datalog!(cnt, 8);
             datalog!(cnt, 64);
             datalog!(cnt, 256);
             datalog!(cnt, 1024);
             datalog!(cnt, 4096);
-        
+
             for s in [8, 64, 2048, 8192, 32768].iter() {
                 P::transaction(|j| unsafe {
                     let mut vec = Vec::with_capacity(cnt);
@@ -188,7 +188,7 @@ mod run {
                     }
                 }).unwrap();
             }
-        
+
             P::transaction(|j| {
                 let b = Pbox::new(0u64, j);
                 let mut vec = Vec::with_capacity(cnt);
@@ -198,7 +198,7 @@ mod run {
                     }));
                 }
             }).unwrap();
-        
+
             P::transaction(|j| {
                 let b = Prc::new(0u64, j);
                 let mut vec = Vec::with_capacity(cnt);
@@ -208,7 +208,7 @@ mod run {
                     }
                 });
             }).unwrap();
-    
+
             P::transaction(|j| {
                 let b = Parc::new(0u64, j);
                 let mut vec = Vec::with_capacity(cnt);
@@ -216,7 +216,7 @@ mod run {
                     vec.push(measure!("Parc:clone".to_string(), { b.pclone(j) }));
                 }
             }).unwrap();
-    
+
             P::transaction(|j| {
                 let b = Parc::new(0u64, j);
                 let mut pvec = Vec::<parc::PWeak<u64>>::with_capacity(cnt);
@@ -228,11 +228,11 @@ mod run {
                     ppvec.push(measure!("Parc:upgrade".to_string(), { pvec[i].upgrade(j) }))
                 }
             }).unwrap();
-    
+
             P::transaction(|j| {
                 let b = Parc::new(0u64, j);
                 let mut vvec = Vec::with_capacity(cnt);
-                unsafe { 
+                unsafe {
                     for _ in 0..cnt {
                         vvec.push(measure!("Parc:demote".to_string(), { Parc::unsafe_demote(&b) }));
                     }
@@ -243,7 +243,7 @@ mod run {
                 }
             }).unwrap();
         }
-    
+
         P::transaction(|j| {
             let b = Prc::new(0u64, j);
             let mut pvec = Vec::with_capacity(cnt);
@@ -259,11 +259,11 @@ mod run {
                 }
             });
         }).unwrap();
-    
+
         P::transaction(|j| {
             let b = Prc::new(0u64, j);
             let mut vvec = Vec::<prc::VWeak<u64>>::with_capacity(cnt);
-            unsafe { 
+            unsafe {
                 measure!("Prc:demote".to_string(), cnt, {
                     for _ in 0..cnt {
                         vvec.push(Prc::unsafe_demote(&b));
@@ -277,7 +277,7 @@ mod run {
                 }
             });
         }).unwrap();
-    
+
         for s in &sizes {
             let layout = std::alloc::Layout::from_size_align(*s * 8, 4).unwrap();
             measure!(format!("malloc({})", *s * 8), cnt, {
@@ -286,7 +286,7 @@ mod run {
                 }
             });
         }
-    
+
         let mut vec = Vec::with_capacity(cnt);
         measure!(" *Vec::push".to_string(), cnt, {
             for i in 0..cnt {
@@ -310,13 +310,13 @@ mod run {
         if m == cnt as u128 + 1 {
             println!("unreachable {}", m);
         }
-    
+
         for _ in 0..cnt {
             measure!(" nop".to_string(), {
                 unsafe { asm!("nop"); }
             });
         }
-    
+
         println!("{}", report());
         let _=save_histograms("hist");
     }

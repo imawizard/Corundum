@@ -84,7 +84,6 @@ pub fn generate(input: TokenStream) -> TokenStream {
     let mut warning = true;
     let mut dir: Option<(PathBuf,proc_macro2::Span)> = None;
 
-    
     let parser = Punctuated::<Expr, Token![,]>::parse_terminated;
     if let Ok(list) = parser.parse2(input.into()) {
         for item in list {

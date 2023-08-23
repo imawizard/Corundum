@@ -29,25 +29,25 @@ impl<T, P: MemPool> UnwindSafe for Gen<T, P> {}
 impl<T, P: MemPool> RefUnwindSafe for Gen<T, P> {}
 
 /// A byte-vector representation of any type
-/// 
+///
 /// It is useful for FFI functions when template types cannot be externally used.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// corundum::pool!(pool);
 /// use pool::*;
 /// type P = Allocator;
-/// 
+///
 /// use corundum::gen::{ByteArray,Gen};
-/// 
+///
 /// struct ExternalType {
 ///     obj: ByteArray<P>
 /// }
-/// 
+///
 /// #[no_mangle]
 /// pub extern "C" fn new_obj(obj: Gen) {
-///     
+///
 /// }
 /// ```
 #[derive(Clone)]
@@ -94,8 +94,8 @@ impl<T: PSafe, P: MemPool> Allocatable<T, P> for ByteArray<T, P> {
     #[inline]
     unsafe fn alloc(size: usize, j: &Journal<P>) -> Self {
         let ptr = P::new_uninit_for_layout(size, j);
-        Self { 
-            bytes: Slice::from_raw_parts(ptr, size), 
+        Self {
+            bytes: Slice::from_raw_parts(ptr, size),
             destructor_address: 0,
             logged: 0,
             phantom: PhantomData
@@ -106,8 +106,8 @@ impl<T: PSafe, P: MemPool> Allocatable<T, P> for ByteArray<T, P> {
     unsafe fn alloc_zeroed(size: usize, j: &Journal<P>) -> Self {
         let z = vec![0u8;size];
         let ptr = P::new_copy_slice(z.as_slice(), j);
-        Self { 
-            bytes: Slice::from_raw_parts(ptr.as_ptr(), size), 
+        Self {
+            bytes: Slice::from_raw_parts(ptr.as_ptr(), size),
             destructor_address: 0,
             logged: 0,
             phantom: PhantomData
@@ -168,8 +168,8 @@ impl<T, P: MemPool> ByteArray<T, P> {
 
     #[inline]
     fn from_gen(obj: Gen<T, P>) -> Self {
-        Self { 
-            bytes: unsafe { Slice::from_raw_parts(obj.ptr as *const u8, obj.len) }, 
+        Self {
+            bytes: unsafe { Slice::from_raw_parts(obj.ptr as *const u8, obj.len) },
             destructor_address: obj.destructor_address,
             logged: 0,
             phantom: PhantomData
@@ -178,20 +178,20 @@ impl<T, P: MemPool> ByteArray<T, P> {
 
     #[inline]
     /// Retrieves an unsafe `Gen` sharing the same pointer and leaks the allocation
-    /// 
+    ///
     /// # Safety
-    /// The returned `Gen` shares the same pointer, but does not drop it. 
-    /// Accessing data through the returned `Gen` may have undefined behavior. 
+    /// The returned `Gen` shares the same pointer, but does not drop it.
+    /// Accessing data through the returned `Gen` may have undefined behavior.
     pub unsafe fn leak(self) -> Gen<T, P> {
         Gen::from_byte_object(self)
     }
 
     #[inline]
     /// Retrieves an unsafe `Gen` sharing the same pointer
-    /// 
+    ///
     /// # Safety
-    /// The returned `Gen` shares the same pointer, but does not drop it. 
-    /// Accessing data through the returned `Gen` may have undefined behavior. 
+    /// The returned `Gen` shares the same pointer, but does not drop it.
+    /// Accessing data through the returned `Gen` may have undefined behavior.
     pub unsafe fn get_gen(&self) -> Gen<T, P> {
         // assert_eq!(self.len(), size_of::<T>(), "Incompatible type casting");
         Gen::<T, P>::from_ptr(self.get_ptr())
@@ -224,8 +224,8 @@ impl<T, P: MemPool> ByteArray<T, P> {
     pub fn write_to(&self, loc: &mut MaybeUninit<T>) {
         unsafe {
             std::ptr::copy_nonoverlapping(
-                self.bytes.as_ptr(), 
-                loc as *mut _ as *mut u8, 
+                self.bytes.as_ptr(),
+                loc as *mut _ as *mut u8,
                 self.bytes.capacity());
         }
     }
@@ -261,7 +261,7 @@ impl<T: PSafe, P: MemPool> Deref for ByteArray<T, P> {
     #[inline]
     fn deref(&self) -> &T {
         self.as_ref()
-    } 
+    }
 }
 
 impl<T, P: MemPool> From<Gen<T, P>> for ByteArray<T, P> {
@@ -335,7 +335,7 @@ impl<T, P: MemPool> Deref for Gen<T, P> {
     #[inline]
     fn deref(&self) -> &T {
         self.as_ref()
-    } 
+    }
 }
 
 // #[cfg(test)]

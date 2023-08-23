@@ -12,7 +12,6 @@
  * General Public License along with this program. If not, see
  * <http://www.gnu.org/licenses/>.
  */
- 
 
 #include <execinfo.h>
 #include <stdio.h>
@@ -46,7 +45,7 @@ char *NVM_GetRegionTablePath()
     sprintf(s, "%s%s/__nvm_region_table", mountpath, usr_name);
     return s;
 }
-    
+
 char *NVM_GetUserDir()
 {
 #ifdef _FORCE_FAIL
@@ -58,7 +57,7 @@ char *NVM_GetUserDir()
     sprintf(s, "%s%s", mountpath, usr_name);
     return s;
 }
-    
+
 char *NVM_GetLogDir()
 {
 #ifdef _FORCE_FAIL
@@ -203,6 +202,3 @@ void NVM_qualifyPathName(char *s, const char *name)
 }
 
 template<> uint32_t SimpleHashTable<SetOfInts>::Size_ = 1024;
-
-
-

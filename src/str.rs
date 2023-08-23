@@ -21,7 +21,7 @@ use std::{fmt, hash, ptr, str};
 /// The `String` type is persistent string type that has ownership over the
 /// contents of the string. It has a close relationship with its borrowed
 /// counterpart, the primitive [`str`].
-/// 
+///
 /// [`PString`] is an alias name in the pool module for `String`.
 ///
 /// [`PString`]: ../alloc/default/type.PString.html
@@ -1186,7 +1186,7 @@ impl<A: MemPool> String<A> {
         let slice: &mut [u8] = self.vec.to_slice_mut();
         unsafe {
             ptr::copy_nonoverlapping(
-                s.as_bytes() as *const _ as *const u8, 
+                s.as_bytes() as *const _ as *const u8,
                 slice as *mut _ as *mut u8,
                 s.len());
             self.vec.set_len(s.len());

@@ -30,7 +30,7 @@ fn main() {
             }
         }));
     }
-    
+
     for t in ts {
         t.join().unwrap();
     }

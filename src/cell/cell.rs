@@ -17,21 +17,21 @@ use crate::cell::TCell;
 /// wrappers. It takes a log, if it was not already taken, before updating the
 /// value.
 ///
-/// Using [`get()`](#method.get) function, you can obtain a copy of data. To 
+/// Using [`get()`](#method.get) function, you can obtain a copy of data. To
 /// update data, you can use [`set()`](#method.set) which writes a log to the
 /// given journal before mutation.
 ///
 /// It does not implement [`Sync`], so it is not possible to share `PCell`
 /// between threads. To provide thread-safe interior mutability, use
 /// [`PMutex`].
-/// 
+///
 /// [`PCell`] is a compact version of `PCell` tha can be find in the pool
 /// module.
 ///
 /// [`Sync`]: std::marker::Sync
 /// [`PMutex`]: ../sync/mutex/struct.PMutex.html
 /// [`PCell`]: ../alloc/default/type.PCell.html
-/// 
+///
 pub struct PCell<T: PSafe + ?Sized, A: MemPool> {
     heap: PhantomData<A>,
 
@@ -59,7 +59,7 @@ impl<T: PSafe + Default, A: MemPool> Default for PCell<T, A> {
     fn default() -> Self {
         PCell {
             heap: PhantomData,
-    
+
             #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
             temp: TCell::new_invalid(None),
 
@@ -173,7 +173,7 @@ impl<T: PSafe, A: MemPool> PCell<T, A> {
     }
 
     /// Swaps the values of two Cells.
-    /// 
+    ///
     /// Difference with `std::mem::swap` is that this function doesn't require
     /// `&mut` reference. It takes a log of both sides, if required, and then
     /// swaps the values.
@@ -184,7 +184,7 @@ impl<T: PSafe, A: MemPool> PCell<T, A> {
     /// use corundum::default::*;
     ///
     /// let _pool = Allocator::open_no_root("foo.pool", O_CF).unwrap();
-    ///     
+    ///
     /// Allocator::transaction(|j| {
     ///     let c1 = Pbox::new(PCell::new(5i32), j);
     ///     let c2 = Pbox::new(PCell::new(10i32), j);
@@ -290,7 +290,7 @@ impl<T: PSafe, A: MemPool> PCell<T, A> {
     /// Heap::transaction(|j| {
     ///     let c = PCell::new(5);
     ///     let five = c.get();
-    ///     
+    ///
     ///     assert_eq!(five, 5);
     /// }).unwrap();
     /// ```
@@ -307,7 +307,7 @@ impl<T: PSafe, A: MemPool> PCell<T, A> {
                     *self.value.get()
                 }
             }
-            
+
             #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
                 (*self.value.get()).1
             }
@@ -409,11 +409,11 @@ impl<T: PSafe + ?Sized, A: MemPool> PCell<T, A> {
             unsafe { &mut (*self.value.get()).1 }
         }
     }
-    
+
     /// Returns a mutable reference to the underlying data without taking a log
     ///
     /// # Safety
-    /// 
+    ///
     /// This function violates borrow rules as it allows multiple mutable
     /// references.
     ///
@@ -422,16 +422,16 @@ impl<T: PSafe + ?Sized, A: MemPool> PCell<T, A> {
     /// ```
     /// use corundum::default::*;
     /// use corundum::cell::PCell;
-    /// 
+    ///
     /// type P = Allocator;
-    /// 
+    ///
     /// let root = P::open::<PCell<i32,P>>("foo.pool", O_CF).unwrap();
-    /// 
+    ///
     /// unsafe {
     ///     let mut data = root.as_mut();
     ///     *data = 20;
     /// }
-    /// 
+    ///
     /// ```
     #[inline]
     pub unsafe fn as_mut(&self) -> &mut T {

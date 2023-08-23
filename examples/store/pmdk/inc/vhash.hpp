@@ -66,7 +66,7 @@ public:
             }
             ret += "}\n";
         }
-        
+
         return ret;
     }
 

@@ -28,10 +28,10 @@ struct Counter<A: MemPool> {
 unsafe impl<A: MemPool> PSafe for Counter<A> {}
 
 /// The [`Parc`] inner data type
-/// 
+///
 /// It contains the atomic counters, a list of volatile references, and the
 /// actual value.
-/// 
+///
 pub struct ParcInner<T: ?Sized, A: MemPool> {
     counter: Counter<A>,
 
@@ -53,26 +53,26 @@ unsafe fn set_data_ptr<T, U>(mut ptr: *mut T, data: *mut U) -> *mut T {
 /// A thread-safe reference-counting persistent pointer. 'Parc' stands for
 /// 'Persistent Atomically Reference Counted'.
 ///
-/// The main aspect of `Parc<T>` is that its atomic counters are also 
+/// The main aspect of `Parc<T>` is that its atomic counters are also
 /// transactional to provide failure atomicity which means that functions
-/// [`pclone`], [`downgrade`], and [`upgrade`] require a [`Journal`] to operate. 
+/// [`pclone`], [`downgrade`], and [`upgrade`] require a [`Journal`] to operate.
 /// In other words, you need to wrap them in a [`transaction`]. The counters are
 /// atomic, so it is safe to share it in multiple threads.
-/// 
+///
 /// Since `Parc` uses reference counting for resource management, it inherits
 /// the cyclic references problem. Please visit [`this`] for the information on
 /// how [`Weak`] helps to resolve that issue.
-/// 
+///
 /// [`this`]: ../prc/index.html#cyclic-references
-/// 
-/// Unlike [`Arc`], `Parc` does not implement [`Send`] to prevent memory leak. 
+///
+/// Unlike [`Arc`], `Parc` does not implement [`Send`] to prevent memory leak.
 /// The reason is that if a `Parc` is created in a transaction without being
 /// reachable from the root object, and moves to a thread, due to being RAII,
 /// its drop function gets called in the other thread outside the original
 /// transaction. Therefore, it destroys allocation consistency and leaves the
 /// `Parc` unreachable in the memory if a crash happens between the original
 /// transaction is done and the drop function is called.
-/// 
+///
 /// To allow sharing, `Parc` provides a safe mechanism to cross the thread
 /// boundaries. When you need to share it, you can obtain a [`VWeak`]
 /// object by calling [`demote()`] function. The [`VWeak`] object is both
@@ -88,13 +88,13 @@ unsafe fn set_data_ptr<T, U>(mut ptr: *mut T, data: *mut U) -> *mut T {
 /// ```
 /// use corundum::default::*;
 /// use std::thread;
-/// 
+///
 /// type P = Allocator;
-/// 
+///
 /// let p = P::open::<Parc<i32>>("foo.pool", O_CF).unwrap();
 /// let v = p.demote();
 /// let mut threads = vec![];
-/// 
+///
 /// for i in 0..10 {
 ///     let p = v.clone();
 ///     threads.push(thread::spawn(move || {
@@ -105,7 +105,7 @@ unsafe fn set_data_ptr<T, U>(mut ptr: *mut T, data: *mut U) -> *mut T {
 ///         }).unwrap();
 ///     }));
 /// }
-/// 
+///
 /// for t in threads {
 ///     t.join().unwrap();
 /// }
@@ -114,19 +114,19 @@ unsafe fn set_data_ptr<T, U>(mut ptr: *mut T, data: *mut U) -> *mut T {
 /// # Mutability
 ///
 /// `Parc` doesn't provide mutable reference to the inner value. To allow
-/// interior mutability, you may use `Parc<`[`PMutex`]`<T,P>,P>` (or in short, 
+/// interior mutability, you may use `Parc<`[`PMutex`]`<T,P>,P>` (or in short,
 /// `Parc<`[`PMutex`]`<T>>` using aliased types).
 ///
 /// ```
 /// use corundum::default::*;
 /// use std::thread;
-/// 
+///
 /// type P = Allocator;
-/// 
+///
 /// let p = P::open::<Parc<PMutex<i32>>>("foo.pool", O_CF).unwrap();
 /// let v = p.demote();
 /// let mut threads = vec![];
-/// 
+///
 /// for i in 0..10 {
 ///     let p = v.clone();
 ///     threads.push(thread::spawn(move || {
@@ -139,15 +139,15 @@ unsafe fn set_data_ptr<T, U>(mut ptr: *mut T, data: *mut U) -> *mut T {
 ///         }).unwrap();
 ///     }));
 /// }
-/// 
+///
 /// for t in threads {
 ///     t.join().unwrap();
 /// }
-/// 
+///
 /// let res = transaction(|j| {
 ///     *p.lock(j)
 /// }).unwrap();
-/// 
+///
 /// assert_eq!(res, 10);
 /// ```
 ///
@@ -404,8 +404,8 @@ impl<T: PSafe, A: MemPool> Parc<MaybeUninit<T>, A> {
     ///
     /// # Safety
     ///
-    /// Any other [`Parc`] or [`Weak`] pointers to the same allocation must not 
-    /// be dereferenced for the duration of the returned borrow. This is 
+    /// Any other [`Parc`] or [`Weak`] pointers to the same allocation must not
+    /// be dereferenced for the duration of the returned borrow. This is
     /// trivially the case if no such pointers exist, for example immediately
     /// after [`Parc::new`].
     ///
@@ -435,7 +435,7 @@ impl<T: PSafe, A: MemPool> Parc<MaybeUninit<T>, A> {
 
 impl<T: PSafe + ?Sized, A: MemPool> Parc<T, A> {
     /// Creates a new [`Weak`] pointer to this allocation.
-    /// 
+    ///
     /// The [`Weak`] pointer can be [`upgrade`]d later in a transaction.
     ///
     /// # Examples
@@ -449,7 +449,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Parc<T, A> {
     ///     let _weak_five = Parc::downgrade(&five, j);
     /// }).unwrap()
     /// ```
-    /// 
+    ///
     /// [`upgrade`]: ./struct.Weak.html#method.upgrade
     pub fn downgrade(this: &Self, j: &Journal<A>) -> Weak<T, A> {
         let inner = this.inner();
@@ -463,9 +463,9 @@ impl<T: PSafe + ?Sized, A: MemPool> Parc<T, A> {
 
     /// Creates a new sharable [`VWeak`](./struct.VWeak.html) pointer to this
     /// allocation.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// This function requires the allocation to be reachable from the
     /// persistent root. Therefore, it panics if it gets called inside a
     /// transaction.
@@ -474,20 +474,20 @@ impl<T: PSafe + ?Sized, A: MemPool> Parc<T, A> {
     ///
     /// ```
     /// use corundum::default::*;
-    /// 
+    ///
     /// type P = Allocator;
-    /// 
+    ///
     /// let obj = P::open::<Parc<i32>>("foo.pool", O_CF).unwrap();
-    /// 
+    ///
     /// let v = obj.demote();
     /// assert_eq!(Parc::strong_count(&obj), 1);
-    /// 
+    ///
     /// P::transaction(|j| {
     ///     if let Some(obj) = v.promote(j) {
     ///         assert_eq!(Parc::strong_count(&obj), 2);
     ///     }
     /// }).unwrap();
-    /// 
+    ///
     /// assert_eq!(Parc::strong_count(&obj), 1);
     /// ```
     pub fn demote(&self) -> VWeak<T, A> {
@@ -619,13 +619,13 @@ impl<T: PSafe, A: MemPool> Parc<T, A> {
     ///
     /// ```
     /// use corundum::default::*;
-    /// 
+    ///
     /// type P = Allocator;
     ///
     /// let root = P::open::<Option<Parc<i32>>>("foo.pool", O_CF).unwrap();
     ///
     /// Parc::initialize(&*root, 25);
-    /// 
+    ///
     /// let value = **root.as_ref().unwrap();
     /// assert_eq!(value, 25);
     /// ```
@@ -646,10 +646,10 @@ impl<T: PSafe, A: MemPool> Parc<T, A> {
                                 weak: 1,
                                 lock: VCell::new(0),
                             },
-        
+
                             #[cfg(not(feature = "no_volatile_pointers"))]
                             vlist: VCell::new(VWeakList::default()),
-        
+
                             marker: PhantomData,
                             value,
                         });
@@ -940,11 +940,11 @@ impl<T: PSafe + ?Sized, A: MemPool> Weak<T, A> {
     ///     let weak_five = Parc::downgrade(&five, j);
     ///     let strong_five = weak_five.upgrade(j);
     ///     assert!(strong_five.is_some());
-    ///     
+    ///
     ///     // Destroy all strong pointers.
     ///     drop(strong_five);
     ///     drop(five);
-    ///     
+    ///
     ///     assert!(weak_five.upgrade(j).is_none());
     /// }).unwrap()
     /// ```
@@ -1052,7 +1052,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Drop for Weak<T, A> {
             };
 
             if fetch_dec(inner.counter.lock.as_mut(),
-                &mut inner.counter.weak, j) == 1 
+                &mut inner.counter.weak, j) == 1
             {
                 unsafe {
                     A::free(self.ptr.as_mut());
@@ -1109,7 +1109,6 @@ fn load(lock: *mut u8, cnt: &usize) -> usize {
     *cnt
 }
 
-
 #[inline]
 fn lock_free_fetch_inc<A: MemPool>(cnt: &mut usize, journal: &Journal<A>) -> usize {
     unsafe {
@@ -1122,7 +1121,7 @@ fn lock_free_fetch_inc<A: MemPool>(cnt: &mut usize, journal: &Journal<A>) -> usi
         } else {
             Ptr::dangling()
         };
-        
+
         let res = *cnt;
         if log.is_dangling() {
             *cnt += 1;
@@ -1152,7 +1151,7 @@ fn fetch_inc<A: MemPool>(lock: *mut u8, cnt: &mut usize, journal: &Journal<A>) -
         } else {
             Ptr::dangling()
         };
-        
+
         let res = *cnt;
         if log.is_dangling() {
             *cnt += 1;
@@ -1183,7 +1182,7 @@ fn fetch_dec<A: MemPool>(lock: *mut u8, cnt: &mut usize, journal: &Journal<A>) -
         } else {
             Ptr::dangling()
         };
-        
+
         let res = *cnt;
         if log.is_dangling() {
             *cnt -= 1;
@@ -1241,7 +1240,7 @@ fn data_offset_align<A: MemPool>(align: usize) -> isize {
     (layout.size() + layout.padding_needed_for(align)) as isize
 }
 
-/// `VWeak` is a version of [`Parc`] that holds a non-owning thread-safe 
+/// `VWeak` is a version of [`Parc`] that holds a non-owning thread-safe
 /// reference to the managed allocation in the volatile heap. The allocation is
 /// accessed by calling [`upgrade`] on the `VWeak` pointer, which returns an
 /// [`Option`]`<`[`Parc`]`<T>>`.
@@ -1295,7 +1294,7 @@ impl<T: PSafe + ?Sized, A: MemPool> VWeak<T, A> {
     /// ```
     /// use corundum::default::*;
     /// use std::mem::drop;
-    /// 
+    ///
     /// type P = Allocator;
     /// let obj = P::open::<Root>("foo.pool", O_CF).unwrap();
     ///
@@ -1307,15 +1306,15 @@ impl<T: PSafe + ?Sized, A: MemPool> VWeak<T, A> {
     /// }
     ///
     /// let vweak_obj = obj.0.borrow().as_ref().unwrap().demote();
-    /// 
+    ///
     /// P::transaction(|j| {
     ///     let strong_obj = vweak_obj.promote(j);
     ///     assert!(strong_obj.is_some());
-    ///     
+    ///
     ///     // Destroy all strong pointers.
     ///     drop(strong_obj);
     ///     *obj.0.borrow_mut(j) = None; // RootCell does not drop, so make it None
-    /// 
+    ///
     ///     assert!(vweak_obj.promote(j).is_none());
     /// }).unwrap();
     /// ```
@@ -1353,17 +1352,17 @@ impl<T: PSafe + ?Sized, A: MemPool> VWeak<T, A> {
 impl<T: PSafe + ?Sized, A: MemPool> Clone for VWeak<T, A> {
     fn clone(&self) -> Self {
         if self.gen == A::gen() {
-            unsafe { 
+            unsafe {
                 if (*self.valid).valid.load(Acquire) {
                     let list = (*self.ptr).vlist.as_mut();
                     return VWeak {
                         ptr: self.ptr,
                         valid: list.append(),
                         gen: self.gen,
-                    };  
+                    };
                 }
             }
-        } 
+        }
         VWeak {
             ptr: self.ptr,
             valid: self.valid,

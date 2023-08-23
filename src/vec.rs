@@ -18,9 +18,9 @@ use std::{mem, ptr, slice};
 
 /// A contiguous growable persistent array type, written `Vec<T>` but pronounced
 /// 'vector'.
-/// 
+///
 /// [`PVec`] is an alias name in the pool module for `Vec`.
-/// 
+///
 /// [`PVec`]: ../alloc/default/type.PVec.html
 ///
 /// # Examples
@@ -377,9 +377,9 @@ impl<T: PSafe, A: MemPool> Vec<T, A> {
     #[inline]
     /// Consumes the vector and converts it into a slice.
     /// Since we should create a log of the context, this function is transactional
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use corundum::vec::Vec;
     /// # use corundum::alloc::heap::*;
@@ -391,7 +391,7 @@ impl<T: PSafe, A: MemPool> Vec<T, A> {
     ///     assert_eq!(vec, [1, 0, 3]);
     /// }).unwrap();
     /// ```
-    /// 
+    ///
     pub fn as_slice_mut(&mut self, j: &Journal<A>) -> &mut [T] {
         let res = Self::__to_slice_mut(self.off(), self.len());
         if self.has_log == 0 {

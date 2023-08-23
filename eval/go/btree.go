@@ -35,7 +35,7 @@ func initialize(ptr *data) {
 
 func insert(ptr **node, key int, value string) {
 	if *ptr == nil {
-		txn("undo") { 
+		txn("undo") {
 			*ptr = pnew(node)
 			(*ptr).key = key
 			copy((*ptr).value[:], value)
@@ -142,4 +142,3 @@ func main() {
 		println("invalid operation")
 	}
 }
-

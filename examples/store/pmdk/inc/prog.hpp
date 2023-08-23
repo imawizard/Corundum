@@ -36,14 +36,14 @@ bool run(string filename, function<bool(vector<string>)> exec) {
     ifstream ifs(filename);
     string content((istreambuf_iterator<char>(ifs)),
                     (istreambuf_iterator<char>()));
-    
+
     istringstream iss(content);
     vector<string> args(istream_iterator<string>{iss},
                         istream_iterator<string>());
-                            
+
     args.insert(args.begin(), "");
     args.insert(args.begin(), "");
-    
+
     return exec(args);
 }
 
@@ -58,7 +58,6 @@ std::string format(const char *fmt...) {
 
 	return str;
 }
-
 
 #include <cstdint>
 

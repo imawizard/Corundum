@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2015-2019, Intel Corporation */
 
@@ -174,7 +173,7 @@ btree_map_find_dest_node(struct btree_map *map,
 			up->items[0] = m;
 			up->slots[0] = n;
 			up->slots[1] = right;
-            
+
 			map->root = up;
 			n = up;
 		}
@@ -446,7 +445,7 @@ void*
 btree_map_remove(uint64_t key)
 {
 	void *ret = NULL;
-	
+
     PTx {
         btree_map *m = PGET(map);
         ret = btree_map_remove_item(m, m->root, NULL, key, 0);

@@ -21,7 +21,7 @@ pub fn persist_with_log<T: ?Sized, A: MemPool>(ptr: *const T, len: usize, fence:
     unsafe {
         crate::log!(A, BrightCyan, "PERSIST", "             ({:>6x}:{:<6x}) = {:<6}",
             A::off_unchecked(ptr),
-            A::off_unchecked(ptr) + (len as u64 - 1), len   
+            A::off_unchecked(ptr) + (len as u64 - 1), len
         );
     }
     persist(ptr, len, fence)
@@ -34,7 +34,7 @@ pub fn persist<T: ?Sized>(ptr: *const T, len: usize, fence: bool) {
     let _perf = crate::stat::Measure::<crate::default::Allocator>::Sync(std::time::Instant::now());
 
     #[cfg(not(feature = "no_persist"))]
-    {   
+    {
         #[cfg(not(feature = "use_msync"))]
         clflush(ptr, len, fence);
 
@@ -96,7 +96,7 @@ pub fn clflush<T: ?Sized>(ptr: *const T, len: usize, fence: bool) {
                 {
                     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
                     asm!("clflush [{}]", in(reg) (start as *const u8), options(nostack));
-                    
+
                     #[cfg(target_arch = "aarch64")]
                     asm!("dc cvau, {}", in(reg) (start as *const u8))
                 }

@@ -149,7 +149,7 @@ impl<T: PSafe, A: MemPool> Slice<T, A> {
     /// # Panics
     ///
     /// Panics if `mid > len`.
-    /// 
+    ///
     pub unsafe fn split_at(&mut self, mid: usize) -> (&[T], &[T]) {
         let slice = self.as_slice();
         slice.split_at(mid)
@@ -164,7 +164,7 @@ impl<T: PSafe, A: MemPool> Slice<T, A> {
     /// # Panics
     ///
     /// Panics if `mid > len`.
-    /// 
+    ///
     #[inline]
     pub unsafe fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
         let slice = self.as_slice_mut();
@@ -184,7 +184,7 @@ impl<T: PSafe, A: MemPool> Slice<T, A> {
     /// The compiler would not drop the copied data. Developer has the
     /// responsibility of deallocating inner value. Also, it does not clone the
     /// inner value. Instead, it just copies the memory.
-    /// 
+    ///
     pub unsafe fn dup(&self) -> Slice<T, A> {
         if self.is_empty() {
             Self::null()

@@ -12,7 +12,6 @@
  * General Public License along with this program. If not, see
  * <http://www.gnu.org/licenses/>.
  */
- 
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,7 +33,7 @@
 using namespace Atlas;
 
 //namespace Atlas {
-    
+
 Tid2Log first_log_tracker;
 Tid2Log last_log_tracker;
 MapR2A map_r2a;
@@ -57,15 +56,15 @@ uint64_t replayed_count = 0;
 int main(int argc, char **argv)
 {
     assert(argc == 2);
-    
+
     R_Initialize(argv[1]);
-    
+
     LogStructure *lsp = GetLogStructureHeader();
 
     // This can happen if logs were never created by the user threads
     // or if the log entry was deleted by the region manager but there
     // was a failure before the log file was removed.
-    
+
     // Note that if logs are ever created, there should be some remnants
     // after a crash since the helper thread never removes everything.
     if (!lsp)
@@ -78,15 +77,15 @@ int main(int argc, char **argv)
 #if !defined(_FLUSH_GLOBAL_COMMIT)
     helper(lsp);
 #endif
-    
+
     LogStructure *recovery_lsp =
         LogMgr::getInstance().getRecoveryLogPointer(std::memory_order_acquire);
     if (recovery_lsp) lsp = recovery_lsp;
-    
+
     CreateRelToAcqMappings(lsp);
 
     Recover();
-    
+
     R_Finalize(argv[1]);
 }
 
@@ -96,7 +95,7 @@ void R_Initialize(const char *s)
 
     PRegionMgr::createInstance();
     LogMgr::createRecoveryInstance();
-    
+
     // The exact mechanism to find the regions that need to be reverted
     // remains to be done. One possibility is to look at all logs on
     // persistent memory, conceivably from a certain pre-specified region.
@@ -118,7 +117,7 @@ void R_Initialize(const char *s)
                                               is_in_recovery);
     assert(nvm_logs_id != kInvalidPRegion_ &&
            "Log region not found in region table!");
-    
+
     LogMgr::getInstance().setRegionId(nvm_logs_id);
 
     void *log_base_addr =
@@ -202,14 +201,14 @@ void AddToMap(LogEntry *acq_le, int tid)
 
     if (rel_le) {
 #if 0 // We can't assert this since a log entry may be reused.
-#ifdef DEBUG        
+#ifdef DEBUG
         if (map_r2a.find(rel_le) != map_r2a.end())
         {
             assert(rel_le->isRWLockUnlock());
             assert(acq_le->isRWLockRdLock());
         }
 #endif
-#endif        
+#endif
         map_r2a.insert(make_pair(rel_le, make_pair(acq_le, tid)));
     }
 }
@@ -259,7 +258,7 @@ void Replay(LogEntry *le)
     else if (le->isAlloc()) *((size_t*)addr) = false; // undo allocation
     else if (le->isFree())  *((size_t*)addr) = true;  // undo de-allocation
     else assert(0 && "Bad log entry type");
-    
+
     ++ replayed_count;
 }
 
@@ -291,16 +290,16 @@ void Recover()
 void Recover(int tid)
 {
     if (done_threads.find(tid) != done_threads.end()) return;
-    
+
     // All replayed logs must have been filtered already.
     Tid2Log::iterator ci = last_log_tracker.find(tid);
     if (ci == last_log_tracker.end()) return;
-    
+
     LogEntry *le = ci->second;
 
     assert(first_log_tracker.find(tid) != first_log_tracker.end());
     LogEntry *stop_node = first_log_tracker.find(tid)->second;
-    
+
     while (le) {
 #ifdef _NVM_TRACE
         fprintf(stderr,
@@ -337,7 +336,7 @@ void Recover(int tid)
         }
         else if (le->isAcquire() || le->isAlloc()) {
             if (le->isAlloc()) Replay(le);
-            
+
             if (done_threads.find(tid) != done_threads.end()) break;
             MarkReplayed(le);
         }
@@ -366,4 +365,3 @@ bool isAlreadyReplayed(LogEntry *le)
     assert(le->isAcquire() || le->isAlloc() || le->isFree());
     return replayed_entries.find(le) != replayed_entries.end();
 }
-

@@ -10,38 +10,38 @@ use std::fmt::{self,Debug};
 
 /// A persistent memory location containing a volatile data valid during a
 /// single transaction
-/// 
+///
 /// The underlying data is valid throughout of the course of a single
 /// transaction scope. When the transaction is finished, the data is back to its
 /// default value. Type `T` in `TCell<T>` should implement [`Default`] and
 /// [`VSafe`].
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// use corundum::default::*;
 /// use std::cell::RefCell;
-/// 
+///
 /// type P = Allocator;
-/// 
+///
 /// #[derive(Root)]
 /// struct Root {
 ///     v: TCell<RefCell<i32>>
 /// }
 ///
 /// let root = P::open::<Root>("foo.pool", O_CF).unwrap();
-///     
+///
 /// P::transaction(|j| {
 ///   let mut v = root.v.borrow_mut();
 ///   assert_eq!(*v, i32::default());
 ///   *v = 20; // This value is volatile and resets when transaction is complete
 ///   assert_eq!(*v, 20);
 /// }).unwrap();
-/// 
+///
 /// let v = root.v.borrow();
 /// assert_eq!(*v, i32::default()); // It contains the default value outside the transaction
 /// ```
-/// 
+///
 /// [`Default`]: std::default::Default
 /// [`VSafe`]: ../trait.VSafe.html
 pub struct TCell<T: Default + VSafe + ?Sized, A: MemPool> {

@@ -20,7 +20,7 @@ pub struct Heap {}
 static mut JOURNALS: Option<HashMap<ThreadId, (u64, i32)>> = None;
 static mut CHAPERONS: Option<HashMap<ThreadId, Chaperon>> = None;
 static mut MUTEX: Option<Mutex<bool>> = None;
-static mut LOGS: LazyCell<Mutex<Ring<(u64, u64), 8>>> = 
+static mut LOGS: LazyCell<Mutex<Ring<(u64, u64), 8>>> =
     LazyCell::new(|| Mutex::new(Ring::new()));
 
 unsafe impl MemPool for Heap {}

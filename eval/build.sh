@@ -22,4 +22,3 @@ cargo build --release --examples
 
 echo "Please run the following command to setup the environment:
     source \$HOME/.corundum/env"
-

@@ -69,7 +69,7 @@ impl Consumer {
                                     "\r\x1b[?25lMemory usage: {:<9} bytes \x1b[?25h",
                                     P::used()
                                 );
-                            } 
+                            }
                         }
                         if let Some(line) = line {                              may_crash!();
                             this.buf = line;                                    may_crash!();

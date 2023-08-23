@@ -39,11 +39,11 @@ pub const JOURNAL_COMMITTED: u64 = 0x0000_0001;
 ///
 /// let cell = Heap::transaction(|journal| {
 ///     let cell = Pbox::new(PCell::new(10), journal);
-/// 
+///
 ///     assert_eq!(cell.get(), 10);
 /// }).unwrap();
 /// ```
-/// 
+///
 /// A `Journal` consists of one or more `page`s. A `page` provides a fixed
 /// number of log slots which is specified by `PAGE_SIZE` (64). This helps
 /// performance as the logs are pre-allocated. When the number of logs in a page
@@ -53,9 +53,9 @@ pub const JOURNAL_COMMITTED: u64 = 0x0000_0001;
 /// `Journal`s by default are deallocated after the transaction or recovery.
 /// However, it is possible to pin journals in the pool if they are used
 /// frequently by enabling "pin_journals" feature.
-/// 
+///
 /// [`transaction()`]: ./fn.transaction.html
-/// 
+///
 pub struct Journal<A: MemPool> {
     pages: Ptr<Page<A>, A>,
 
@@ -124,7 +124,7 @@ impl<A: MemPool> Page<A> {
         }
     }
 
-    unsafe fn commit_dealloc(&mut self, 
+    unsafe fn commit_dealloc(&mut self,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
@@ -142,7 +142,7 @@ impl<A: MemPool> Page<A> {
         }
     }
 
-    unsafe fn rollback_dealloc(&mut self, 
+    unsafe fn rollback_dealloc(&mut self,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
@@ -154,12 +154,12 @@ impl<A: MemPool> Page<A> {
         }
     }
 
-    unsafe fn recover(&mut self, rollback: bool, 
+    unsafe fn recover(&mut self, rollback: bool,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
         for i in 0..self.len {
-            self.logs[self.len - i - 1].recover(rollback, 
+            self.logs[self.len - i - 1].recover(rollback,
                 #[cfg(feature = "check_double_free")]
                 check_double_free
             );
@@ -172,7 +172,7 @@ impl<A: MemPool> Page<A> {
         self.logs = [Default::default(); PAGE_LOG_SLOTS];
     }
 
-    unsafe fn clear(&mut self, 
+    unsafe fn clear(&mut self,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
@@ -301,7 +301,7 @@ impl<A: MemPool> Journal<A> {
             };
             let (_, off, _, z) = A::atomic_new(page);
             A::log64(A::off_unchecked(self.pages.off_ref()), off, z);
-            
+
             #[cfg(feature = "pin_journals")] {
                 A::log64(A::off_unchecked(self.current.off_ref()), off, z);
                 // eprintln!("new page for {:p} at {:x}", self as *const Self, off);
@@ -393,7 +393,7 @@ impl<A: MemPool> Journal<A> {
             }
         }
 
-        let mut res = format!("Committed: {}\n", 
+        let mut res = format!("Committed: {}\n",
             if self.is_committed() { "Yes" } else { "No" });
         res += &format!("Chaperoned session id: {}\n", self.sec_id);
         res += &format!("Chaperone file: {}\n", String::from_utf8(self.chaperon.to_vec()).unwrap_or("".to_string()));
@@ -421,7 +421,7 @@ impl<A: MemPool> Journal<A> {
     }
 
     /// Commits all logs in the journal
-    pub unsafe fn commit(&mut self, 
+    pub unsafe fn commit(&mut self,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
@@ -451,7 +451,7 @@ impl<A: MemPool> Journal<A> {
     }
 
     /// Reverts all changes
-    pub unsafe fn rollback(&mut self, 
+    pub unsafe fn rollback(&mut self,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
@@ -481,7 +481,7 @@ impl<A: MemPool> Journal<A> {
     }
 
     /// Recovers from a crash or power failure
-    pub unsafe fn recover(&mut self, 
+    pub unsafe fn recover(&mut self,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
@@ -502,7 +502,7 @@ impl<A: MemPool> Journal<A> {
                 }
             }
             while let Some(page) = curr.as_option() {
-                page.recover(rollback, 
+                page.recover(rollback,
                     #[cfg(feature = "check_double_free")]
                     check_double_free
                 );
@@ -513,7 +513,7 @@ impl<A: MemPool> Journal<A> {
     }
 
     /// Clears all logs and drops itself from the memory pool
-    pub unsafe fn clear(&mut self, 
+    pub unsafe fn clear(&mut self,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
@@ -605,7 +605,7 @@ impl<A: MemPool> Journal<A> {
     }
 
     pub(crate) fn start_session(&mut self, chaperon: &mut Chaperon) {
-        let mut filename = [0u8; 64]; 
+        let mut filename = [0u8; 64];
         let s = chaperon.filename().as_bytes();
         for i in 0..usize::min(64,s.len()) {
             filename[i] = s[i];
@@ -724,7 +724,7 @@ impl<A: MemPool> Journal<A> {
     }
 
     /// Ignores all logs
-    /// 
+    ///
     /// This function is only for measuring some properties such as log latency.
     pub unsafe fn ignore(&self) {
         let mut page = utils::as_mut(self).pages.as_option();

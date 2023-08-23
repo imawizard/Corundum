@@ -1,8 +1,8 @@
 //! Volatile Scratchpad Memory
-//! 
+//!
 //! This features is still under development. To enable it, you need to add
 //! `"use_pspd"` to the feature list.
-//! 
+//!
 
 use crate::cell::{LazyCell,VCell};
 use crate::alloc::MemPool;
@@ -83,11 +83,11 @@ impl<A: MemPool> Scratchpad<A> {
 
                 // First 8 bytes is org_off
                 let org_off = *utils::read::<u64>(p);
-    
+
                 // Second 8 bytes is the relative distance
                 let p = p.add(8);
                 let dist = *utils::read::<usize>(p);
-    
+
                 // The last bytes contain data
                 let p = p.add(8);
                 let len = dist - 16;
@@ -95,7 +95,7 @@ impl<A: MemPool> Scratchpad<A> {
 
                 ptr::copy_nonoverlapping(p, org, len);
                 ll::persist(org, len, false);
-    
+
                 cur += dist as u64;
             }
         }
@@ -115,7 +115,7 @@ impl<A: MemPool> Scratchpad<A> {
             ll::persist(&*p, size, false);
             A::log64(A::off_unchecked(&self.off), off, z);
             A::perform(z);
-    
+
             self.apply();
         }
     }

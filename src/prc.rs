@@ -4,12 +4,12 @@
 //! owners. To create a new strong reference, you may use [`pclone`] function.
 //! When the last owner of data goes out of scope, the strong reference count
 //! becomes zero, and the owner drops the allocation.
-//! 
+//!
 //! # Cyclic References
 //! If there is a cycle in the chain of references, dropping the link may yield
 //! a memory leak. For example, assume that we have three nodes of `A`, `B`, and
 //! `C`, which are connected together like figure (a) below:
-//! 
+//!
 //! ```text
 //! Strong Refs:     1    2    1        1    1    1        1    1    1
 //!                  A -▷ B -▷ C        A    B -▷ C        A -▷ B -▷ C
@@ -17,50 +17,50 @@
 //!                       └────┘             └────┘             └----┘
 //!                      (a)                (b)                (c)
 //! ```
-//! 
+//!
 //! In this topology, `B` has two strong references: `A` and `C`. Therefore,
 //! when the `A -▷ B` link drops, it loses only one strong references allowing
 //! the other strong reference to keep the cycle it in memory while the nodes
 //! are unreachable. The resulting network is shown in figure (b).
-//! 
+//!
 //! [`Weak`] is provided to fix this issue. Although it is not enforced, the
 //! programmer can take benefits out of it. A weak link does not increment the
 //! strong reference counter. Making `C -▷ B` weak, which is shown in figure (c),
 //! resolves this problem. Since `B`'s strong reference counter is 1, dropping
 //! `A -▷ B` makes it zero and `B`'s drop function gets called.
-//! 
+//!
 //! # Example
-//! 
+//!
 //! The following example does not use a weak pointer leading to a memory leak.
 //! It creates the following links: `A -> B`, `B -> C`, and `C -> B`. The last
 //! two links create a cycle. Therefore, when `A` goes of scope, it cannot drop
 //! `B` and `C` because the strong reference count for both of them is non-zero.
 //! Nodes `B` and `C` remain in memory forever.
-//! 
+//!
 //! ```
 //! use corundum::default::*;
 //! type P = Allocator;
-//! 
+//!
 //! struct Node {
 //!     val: char,
 //!     link: PRefCell<Option<Prc<Node>>>
 //! }
-//! 
+//!
 //! impl Node {
 //!     fn new(val: char) -> Self {
 //!         println!("{} is created", val);
 //!         Self { val, link: PRefCell::new(None) }
 //!     }
 //! }
-//! 
+//!
 //! impl Drop for Node {
 //!     fn drop(&mut self) {
 //!         println!("{} is dropped", self.val);
 //!     }
 //! }
-//! 
+//!
 //! let _pool = P::open_no_root("net.pool", O_CF).unwrap();
-//! 
+//!
 //! transaction(|j| {
 //!     let A = Prc::new(Node::new('A'), j);
 //!     let B = Prc::new(Node::new('B'), j);
@@ -73,52 +73,52 @@
 //!     *c_link = Some(B.pclone(j));
 //! }).unwrap();
 //! ```
-//! 
+//!
 //! The output of the example above is as follows (`B` and `C` do not drop the
 //! allocation):
-//! 
+//!
 //! ```text
 //! A is created
 //! B is created
 //! C is created
 //! A is dropped
 //! ```
-//! 
+//!
 //! To prevent the memory leak, we can use a weak link. The following example
 //! shows how to manually prevent cycles. The `C -> B` link is weak, so the
 //! strong reference counter becomes zero when `A -> B` is eliminated.
-//! 
+//!
 //! ```
 //! use corundum::default::*;
 //! type P = Allocator;
-//! 
+//!
 //! enum Link<T: PSafe> {
 //!     Strong(Prc<T>),
 //!     Weak(prc::PWeak<T>),
 //!     Null
 //! }
-//! 
+//!
 //! struct Node {
 //!     val: char,
 //!     link: PRefCell<Link<Node>>
 //! }
-//! 
+//!
 //! impl Node {
 //!     fn new(val: char) -> Self {
 //!         println!("{} is created", val);
 //!         Self { val, link: PRefCell::new(Null) }
 //!     }
 //! }
-//! 
+//!
 //! impl Drop for Node {
 //!     fn drop(&mut self) {
 //!         println!("{} is dropped", self.val);
 //!     }
 //! }
 //! # use Link::*;
-//! 
+//!
 //! let _pool = P::open_no_root("net.pool", O_CF).unwrap();
-//! 
+//!
 //! transaction(|j| {
 //!     let A = Prc::new(Node::new('A'), j);
 //!     let B = Prc::new(Node::new('B'), j);
@@ -131,9 +131,9 @@
 //!     *c_link = Weak(Prc::downgrade(&B, j));
 //! }).unwrap();
 //! ```
-//! 
+//!
 //! The output shows that no `Node` remains in memory.
-//! 
+//!
 //! ```text
 //! A is created
 //! B is created
@@ -142,9 +142,9 @@
 //! B is dropped
 //! C is dropped
 //! ```
-//! 
+//!
 //! [`pclone`]: ./struct.Prc.html#method.pclone
-//! 
+//!
 use std::panic::RefUnwindSafe;
 use std::panic::UnwindSafe;
 use crate::alloc::{MemPool, PmemUsage};
@@ -225,13 +225,13 @@ unsafe fn set_data_ptr<T: ?Sized, U>(mut ptr: *mut T, data: *mut U) -> *mut T {
 /// means that functions [`pclone`], [`downgrade`], and [`upgrade`] require a
 /// [`Journal`] to operate. In other words, you need to wrap them in a
 /// [`transaction`].
-/// 
+///
 /// `Prc` uses reference counting to manage memory. Although it provides a fast
 /// solution for deallocation without scan, cyclic references yield a memory
 /// leak. At this point, we have not provided a static solution to detect cyclic
 /// references. However, following Rust's partial solution for that, you may use
 /// [`Weak`] references for reference cycles.
-/// 
+///
 /// References to data can be strong (using [`pclone`]), weak (using [`downgrade`]),
 /// or volatile weak (using [`demote`]). The first two generate NV-to-NV
 /// pointers, while the last on is a V-to-NV pointer. Please see [`Weak`] and
@@ -246,40 +246,40 @@ unsafe fn set_data_ptr<T: ?Sized, U>(mut ptr: *mut T, data: *mut U) -> *mut T {
 /// # type P = Heap;
 /// use corundum::prc::Prc;
 /// use corundum::clone::PClone;
-/// 
+///
 /// # #[allow(unused)]
 /// P::transaction(|j| {
 ///     let p = Prc::<i32,P>::new(1, j);
-/// 
+///
 ///     // Create a new persistent strong reference
 ///     let s = p.pclone(j);
-/// 
+///
 ///     assert_eq!(*p, *s);
 ///     assert_eq!(2, Prc::strong_count(&p));
 ///     assert_eq!(0, Prc::weak_count(&p));
-/// 
+///
 ///     // Create a new persistent weak reference
 ///     let w = Prc::downgrade(&p, j);
 ///     assert_eq!(2, Prc::strong_count(&p));
 ///     assert_eq!(1, Prc::weak_count(&p));
-/// 
+///
 ///     // Create a new volatile weak reference
 ///     let v = Prc::demote(&p);
 ///     assert_eq!(2, Prc::strong_count(&p));
 ///     assert_eq!(1, Prc::weak_count(&p));
-/// 
+///
 ///     // Upgrade the persistent weak ref to a strong ref
 ///     let ws = w.upgrade(j).unwrap();
 ///     assert_eq!(3, Prc::strong_count(&p));
 ///     assert_eq!(1, Prc::weak_count(&p));
-/// 
+///
 ///     // Upgrade the volatile weak ref to a strong ref
 ///     let vs = w.upgrade(j).unwrap();
 ///     assert_eq!(4, Prc::strong_count(&p));
 ///     assert_eq!(1, Prc::weak_count(&p));
 /// }).unwrap();
 /// ```
-/// 
+///
 /// [`pclone`]: #method.pclone
 /// [`downgrade`]: #method.downgrade
 /// [`demote`]: #method.demote
@@ -582,11 +582,11 @@ impl<T: PSafe, A: MemPool> Prc<MaybeUninit<T>, A> {
 
 impl<T: PSafe + ?Sized, A: MemPool> Prc<T, A> {
     /// Creates a new `Weak` persistent pointer to this allocation.
-    /// 
+    ///
     /// The `Weak` pointer can later be [`upgrade`]d to a `Prc`.
     ///
     /// [`upgrade`]: ./struct.Weak.html#upgrade
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
@@ -606,11 +606,11 @@ impl<T: PSafe + ?Sized, A: MemPool> Prc<T, A> {
     }
 
     /// Creates a new `Weak` volatile to this allocation.
-    /// 
+    ///
     /// The `Weak` pointer can later be [`promote`]d to a `Prc`.
     ///
     /// [`promote`]: ./struct.VWeak.html#upgrade
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
@@ -621,14 +621,14 @@ impl<T: PSafe + ?Sized, A: MemPool> Prc<T, A> {
     /// P::transaction(|j| {
     ///     let five = Prc::new(5, j);
     ///     let weak_five = Prc::demote(&five);
-    /// 
+    ///
     ///     assert_eq!(Prc::strong_count(&five), 1);
-    /// 
+    ///
     ///     if let Some(f) = weak_five.promote(j) {
     ///         assert_eq!(*f, 5);
     ///         assert_eq!(Prc::strong_count(&five), 2);
     ///     }
-    /// 
+    ///
     ///     assert_eq!(Prc::strong_count(&five), 1);
     /// }).unwrap()
     /// ```
@@ -711,7 +711,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Prc<T, A> {
     ///     assert!(!Prc::ptr_eq(&five, &other_five));
     /// }).unwrap();
     /// ```
-    /// 
+    ///
     /// [`ptr::eq`]: std::ptr::eq
     pub fn ptr_eq(this: &Self, other: &Self) -> bool {
         this.ptr.off() == other.ptr.off()
@@ -739,7 +739,6 @@ impl<T: PSafe + ?Sized, A: MemPool> Deref for Prc<T, A> {
     }
 }
 
-
 impl<T: PSafe, A: MemPool> Prc<T, A> {
     /// Initializes boxed data with `value` in-place if it is `None`
     ///
@@ -754,13 +753,13 @@ impl<T: PSafe, A: MemPool> Prc<T, A> {
     ///
     /// ```
     /// use corundum::default::*;
-    /// 
+    ///
     /// type P = Allocator;
     ///
     /// let root = P::open::<Option<Prc<i32>>>("foo.pool", O_CF).unwrap();
     ///
     /// Prc::initialize(&*root, 25);
-    /// 
+    ///
     /// let value = **root.as_ref().unwrap();
     /// assert_eq!(value, 25);
     /// ```
@@ -779,23 +778,23 @@ impl<T: PSafe, A: MemPool> Prc<T, A> {
                             counter: Counter {
                                 strong: 1,
                                 weak: 1,
-        
+
                                 #[cfg(not(any(
                                     feature = "no_log_rc",
                                     feature = "use_pspd",
                                     feature = "use_vspd"
                                 )))]
                                 has_log: 0,
-    
+
                                 #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
                                 temp: TCell::new_invalid(None),
 
                                 phantom: PhantomData
                             },
-        
+
                             #[cfg(not(feature = "no_volatile_pointers"))]
                             vlist: VCell::new(VWeakList::default()),
-        
+
                             dummy: [],
                             value,
                         });
@@ -872,19 +871,19 @@ unsafe impl<#[may_dangle] T: PSafe + ?Sized, A: MemPool> Drop for Prc<T, A> {
 impl<T: PSafe + ?Sized, A: MemPool> PClone<A> for Prc<T, A> {
     #[inline]
     /// Creates a new strong reference to the object
-    /// 
+    ///
     /// It increments the strong reference counter in a failure-atomic manner.
     /// When a transaction is aborted or power fails, every strong references
     /// to the object should be gone, and the counters should rollback to the
     /// consistent state before the transaction.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use corundum::default::*;
     /// # type P = Allocator;
     /// let root = P::open::<Prc<i32>>("foo.pool", O_CF).unwrap();
-    /// 
+    ///
     /// let _ = P::transaction(|j| {
     ///     let _n1 = root.pclone(j);
     ///     let _n2 = root.pclone(j);
@@ -892,7 +891,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PClone<A> for Prc<T, A> {
     ///     assert_eq!(4, Prc::strong_count(&root));
     ///     panic!("abort")
     /// });
-    /// 
+    ///
     /// assert_eq!(1, Prc::strong_count(&root));
     /// ```
     fn pclone(&self, journal: &Journal<A>) -> Prc<T, A> {
@@ -1198,7 +1197,7 @@ trait PrcBoxPtr<T: PSafe + ?Sized, A: MemPool> {
         if strong == 0 || strong == usize::max_value() {
             std::process::abort();
         }
-        #[cfg(not(feature = "no_log_rc"))] 
+        #[cfg(not(feature = "no_log_rc"))]
         self.log_count(_journal);
 
         #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] unsafe {
@@ -1423,17 +1422,17 @@ impl<T: PSafe + ?Sized, A: MemPool> VWeak<T, A> {
 impl<T: PSafe + ?Sized, A: MemPool> Clone for VWeak<T, A> {
     fn clone(&self) -> Self {
         if self.gen == A::gen() {
-            unsafe { 
+            unsafe {
                 if (*self.valid).valid {
                     let list = (*self.ptr).vlist.as_mut();
                     return VWeak {
                         ptr: self.ptr,
                         valid: list.append(),
                         gen: self.gen,
-                    };  
+                    };
                 }
             }
-        } 
+        }
         VWeak {
             ptr: self.ptr,
             valid: self.valid,
@@ -1441,7 +1440,6 @@ impl<T: PSafe + ?Sized, A: MemPool> Clone for VWeak<T, A> {
         }
     }
 }
-
 
 impl<T: ?Sized, A: MemPool> Drop for VWeak<T, A> {
     fn drop(&mut self) {

@@ -12,7 +12,6 @@
  * General Public License along with this program. If not, see
  * <http://www.gnu.org/licenses/>.
  */
- 
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
@@ -48,7 +47,7 @@ namespace {
         static char ID;
         std::string PassName;
         NvmInstrumenter()
-            : FunctionPass(ID), AcquireFuncEntry(0), ReleaseFuncEntry(0), 
+            : FunctionPass(ID), AcquireFuncEntry(0), ReleaseFuncEntry(0),
               StoreFuncEntry(0), PsyncAcqFuncEntry(0),
               MemCpyFuncEntry(0), MemMoveFuncEntry(0), MemSetFuncEntry(0),
               StrCpyFuncEntry(0), StrCatFuncEntry(0),
@@ -75,12 +74,12 @@ namespace {
         void initializeBarrierFuncEntry(Module &M);
         void initializeAsyncDataFlushEntry(Module &M);
         void initializeAsyncMemOpDataFlushEntry(Module &M);
-        
+
         bool shouldInstrumentStore(StoreInst *SI);
         CallOpType getCallOperationType(Instruction *I);
 
         bool performNvmInstrumentation(
-            Function &F, 
+            Function &F,
             const SmallVectorImpl<Instruction*> &Stores,
             const SmallVectorImpl<Instruction*> &Acquires,
             const SmallVectorImpl<Instruction*> &Releases,
@@ -198,11 +197,11 @@ NvmInstrumenter::getCallOperationType(Instruction *I)
     CallInst *CallInstruction = cast<CallInst>(I);
     Function *CalledFunction = CallInstruction->getCalledFunction();
     if (!CalledFunction) return None;
-    
+
     if (!CalledFunction->isDeclaration()) return None;
 
     // TODO attribute check to make sure it is not overridden
-    
+
     if (CalledFunction->getName().equals(LockAcquireName))
         return Acquire;
     else if (CalledFunction->getName().equals(LockReleaseName))
@@ -226,7 +225,7 @@ NvmInstrumenter::getCallOperationType(Instruction *I)
 void NvmInstrumenter::initializeAcquire(Module &M)
 {
     if (AcquireFuncEntry) return;
-    
+
     IRBuilder<> IRB(M.getContext());
     auto lval = M.getOrInsertFunction("nvm_acquire", IRB.getVoidTy(),
                               Type::getInt8PtrTy(M.getContext()));
@@ -255,7 +254,7 @@ void NvmInstrumenter::initializeStore(Module &M)
     StoreFuncEntry = M.getFunction("nvm_store"); // dyn_cast<Function>(&lval);
     assert(StoreFuncEntry);
 }
-        
+
 void NvmInstrumenter::initializeMemCpyFuncEntry(Module &M)
 {
     if (MemCpyFuncEntry) return;
@@ -340,7 +339,7 @@ void NvmInstrumenter::initializePsyncAcqFuncEntry(Module &M)
     PsyncAcqFuncEntry = M.getFunction("nvm_psync_acq"); // dyn_cast<Function>(&lval);
     assert(PsyncAcqFuncEntry);
 }
-    
+
 void NvmInstrumenter::initializeAsyncDataFlushEntry(Module &M)
 {
     if (AsyncDataFlushEntry) return;
@@ -362,7 +361,7 @@ void NvmInstrumenter::initializeAsyncMemOpDataFlushEntry(Module &M)
     assert(AsyncMemOpDataFlushEntry);
 }
 bool NvmInstrumenter::performNvmInstrumentation(
-    Function &F, 
+    Function &F,
     const SmallVectorImpl<Instruction*> &Stores,
     const SmallVectorImpl<Instruction*> &Acquires,
     const SmallVectorImpl<Instruction*> &Releases,
@@ -390,9 +389,9 @@ bool NvmInstrumenter::performNvmInstrumentation(
         if (MemCpys.size() || MemMoves.size() || MemSets.size() || StrCpys.size() || StrCats.size())
             initializePsyncAcqFuncEntry(*F.getParent());
     }
-    
+
     IRBuilder<> IRB(F.getParent()->getContext());
-    
+
     for (SmallVectorImpl<Instruction*>::const_iterator AB = Acquires.begin(),
          AE = Acquires.end(); AB != AE; ++AB) {
         Instruction *I = *AB;
@@ -442,7 +441,7 @@ bool NvmInstrumenter::performNvmInstrumentation(
         StoreInst *StoreInstruction = cast<StoreInst>(I);
         Value *Addr = StoreInstruction->getPointerOperand();
         Value *Val = StoreInstruction->getValueOperand();
-        
+
         unsigned sz;
         if (Val->getType()->isIntegerTy() ||
             Val->getType()->isFloatTy() ||
@@ -464,23 +463,23 @@ bool NvmInstrumenter::performNvmInstrumentation(
             assert(!(sz % 8));
             sz = 64;
         }
-        
+
         PointerType *ArgType =
             Type::getInt8PtrTy(F.getParent()->getContext());
         Value *Arg1 = Addr->getType() == ArgType ? NULL :
             IRB.CreatePointerCast(Addr, ArgType);
         Value *ConstantSize = ConstantInt::get(
             Type::getInt64Ty(F.getParent()->getContext()), sz);
-        
+
         Value *Args[] = {Arg1 ? Arg1 : Addr, ConstantSize};
-        
+
         CallInst *NI = NULL;
         initializeStore(*F.getParent());
         NI = CallInst::Create(StoreFuncEntry, ArrayRef<Value*>(Args),
                               "", StoreInstruction);
         if (Arg1 && isa<Instruction>(Arg1))
             dyn_cast<Instruction>(Arg1)->insertBefore(NI);
-        
+
         if (isa<Instruction>(ConstantSize))
             dyn_cast<Instruction>(ConstantSize)->insertBefore(NI);
 
@@ -509,7 +508,7 @@ bool NvmInstrumenter::performNvmInstrumentation(
             CallInst::Create(StoreFuncEntry, ArrayRef<Value*>(ExtraArgs),
                              "", StoreInstruction);
         }
-            
+
         Value *BarrierArgs[] = {Arg1 ? Arg1 : Addr};
         if (getenv("USE_TABLE_FLUSH")) {
             CallInst *TFI = CallInst::Create(AsyncDataFlushEntry,
@@ -585,7 +584,7 @@ bool NvmInstrumenter::performNvmInstrumentation(
         }
         else errs() << "Found a non-call instruction in strcpys...";
     }
-    
+
     return true;
 }
 

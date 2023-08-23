@@ -13,8 +13,7 @@ use std::{mem, panic, ptr, slice, str, thread};
 
 const MAX_TRANS: usize = 4096;
 
-
-/// A third-party observer for multi-pool transactions 
+/// A third-party observer for multi-pool transactions
 ///
 /// It provides an atomic supper transaction (a [`session`]) for manipulating
 /// persistent data in multiple pools, atomically. The involved pools go to a
@@ -23,7 +22,7 @@ const MAX_TRANS: usize = 4096;
 /// until the end of the [`session`]. To keep track of pools' states, it creates
 /// a chaperon file with necessary information for recovering them, in case of a
 /// crash.
-/// 
+///
 /// [`session`]: #method.session
 /// [`commit`]: ../alloc/trait.MemPool.html#method.commit
 /// [`rollback`]: ../alloc/trait.MemPool.html#method.rollback
@@ -80,7 +79,7 @@ impl<T: ?Sized> SyncBox<T> {
 unsafe impl<T:?Sized> Sync for SyncBox<T> {}
 unsafe impl<T:?Sized> Send for SyncBox<T> {}
 
-static mut CLIST: LazyCell<Mutex<HashMap<ThreadId, SyncBox<Chaperon>>>> = 
+static mut CLIST: LazyCell<Mutex<HashMap<ThreadId, SyncBox<Chaperon>>>> =
     LazyCell::new(|| Mutex::new(HashMap::new()));
 
 fn new_chaperon(filename: &str) -> Result<*mut Chaperon> {
@@ -289,19 +288,19 @@ impl Chaperon {
 
     #[inline]
     /// Starts a chaperoned session
-    /// 
+    ///
     /// It creates a chaperoned session in which multiple pools can start a
     /// [`transaction`]. The transactions won't be finalized until the session
     /// ends. A chaperon file keeps the necessary information for recovering the
     /// involved pools. If the operation is successful, it returns a value of
     /// type `T`.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// * In case of a crash, the involved pools are not individually
     /// recoverable on the absence of the chaperon file.
     /// * Chaperoned sessions cannot be nested.
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
@@ -355,7 +354,7 @@ impl Chaperon {
     ///     }
     /// }
     /// ```
-    /// 
+    ///
     /// [`transaction`]: ./fn.transaction.html
     pub fn session<T, F: FnOnce() -> T>(filename: &str, body: F) -> Result<T>
     where

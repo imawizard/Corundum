@@ -68,7 +68,7 @@ public:
         /* if there is no element with specified key, insert new value
 		 * to the end of values vector and put reference in proper
 		 * bucket transactionally */
-        values.push_back(val, kv_rgn_id);        
+        values.push_back(val, kv_rgn_id);
         buckets[index].push_back(std::pair<key_type, std::size_t>(key, values.size() - 1), kv_rgn_id);
         pthread_mutex_unlock(this->lock);
     }

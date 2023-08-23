@@ -28,7 +28,7 @@ use crate::cell::VCell;
 /// [`RefMut<T>`](./struct.RefMut.html). The borrowing rules is checked
 /// dynamically when the user tries to borrow the value. It panics if any of
 /// the following situation happens:
-/// 
+///
 /// * Borrowing the value mutably while it was already borrowed immutably
 /// * Borrowing the value mutably twice
 /// * Borrowing the value immutably while it was already borrowed mutably
@@ -36,7 +36,7 @@ use crate::cell::VCell;
 /// It does not implement [`Sync`], so it is not possible to share `PRefCell`
 /// between threads. To provide thread-safe interior mutability, use
 /// [`PMutex`].
-/// 
+///
 /// [`PRefCell`] is an alias name in the pool module for `PRefCell`.
 ///
 /// [`Sync`]: std::marker::Sync
@@ -115,7 +115,7 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
     ///
     /// Heap::transaction(|j| {
     ///     let cell = Pbox::new(PRefCell::new(5), j);
-    ///     
+    ///
     ///     let old_value = cell.replace(6, j);
     ///     assert_eq!(old_value, 5);
     ///     assert_eq!(*cell.borrow(), 6);
@@ -140,7 +140,7 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
     ///
     /// Heap::transaction(|j| {
     ///     let cell = Pbox::new(PRefCell::new(5), j);
-    ///     
+    ///
     ///     let old_value = cell.replace_with(j, |&mut old| old + 1);
     ///     assert_eq!(old_value, 5);
     ///     assert_eq!(*cell.borrow(), 6);
@@ -163,12 +163,12 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
     /// Panics if the value in either `RefCell` is currently borrowed.
     ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use corundum::default::*;
     ///
     /// let _pool = Allocator::open_no_root("foo.pool", O_CF);
-    ///     
+    ///
     /// Allocator::transaction(|j| {
     ///     let c1 = Pbox::new(PRefCell::new(5i32), j);
     ///     let c2 = Pbox::new(PRefCell::new(10i32), j);
@@ -230,7 +230,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     /// use corundum::default::*;
     ///
     /// let _pool = Allocator::open_no_root("foo.pool", O_CF);
-    ///     
+    ///
     /// Allocator::transaction(|j| {
     ///     let c1 = Pbox::new(PRefCell::new(5i32), j);
     ///     let c2 = Pbox::new(PRefCell::new(10i32), j);
@@ -250,7 +250,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
                 &mut *inner
             }
         }
-    
+
         #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
             &mut inner.1
         }
@@ -260,7 +260,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     /// Returns a mutable reference to the underlying data without logging
     ///
     /// # Safety
-    /// 
+    ///
     /// This function violates borrow rules as it allows multiple mutable
     /// references.
     ///
@@ -269,16 +269,16 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     /// ```
     /// use corundum::default::*;
     /// use corundum::cell::PRefCell;
-    /// 
+    ///
     /// type P = Allocator;
-    /// 
+    ///
     /// let root = P::open::<PRefCell<i32,P>>("foo.pool", O_CF).unwrap();
-    /// 
+    ///
     /// unsafe {
     ///     let mut data = root.as_mut();
     ///     *data = 20;
     /// }
-    /// 
+    ///
     /// ```
     pub unsafe fn as_mut(&self) -> &mut T {
         #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
@@ -288,7 +288,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
                 &mut *self.value.get()
             }
         }
-    
+
         #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
             &mut (*self.value.get()).1
         }
@@ -305,7 +305,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
                     &*self.value.get()
                 }
             }
-        
+
             #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))] {
                 &(*self.value.get()).1
             }
@@ -323,7 +323,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     ///
     /// Heap::transaction(|j| {
     ///     let cell = Pbox::new(PRefCell::new(5), j);
-    ///     
+    ///
     ///     assert_eq!(*cell.borrow(), 5);
     /// }).unwrap();
     /// ```
@@ -340,7 +340,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
 
     #[inline]
     /// Returns a clone of the underlying data
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
@@ -348,7 +348,7 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     ///
     /// Heap::transaction(|j| {
     ///     let cell = Pbox::new(PRefCell::new(5), j);
-    ///     
+    ///
     ///     assert_eq!(cell.read(), 5);
     /// }).unwrap();
     /// ```
@@ -387,8 +387,8 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
 
 impl<T: PSafe + PClone<A>, A: MemPool> PFrom<Ref<'_, T, A>, A> for PRefCell<T, A> {
     /// Crates a new `PRefCell` and drops the `Ref`
-    /// 
-    /// After calling this function, the `Ref` won't be available anymore. It 
+    ///
+    /// After calling this function, the `Ref` won't be available anymore. It
     /// will be possible to borrow the `PRefCell` mutably. The new
     /// `PRefCell` has a new location with the same data.
     fn pfrom(other: Ref<'_, T, A>, j: &Journal<A>) -> Self {
@@ -398,8 +398,8 @@ impl<T: PSafe + PClone<A>, A: MemPool> PFrom<Ref<'_, T, A>, A> for PRefCell<T, A
 
 impl<T: PSafe + PClone<A>, A: MemPool> PFrom<RefMut<'_, T, A>, A> for PRefCell<T, A> {
     /// Crates a new `PRefCell` and drops the `Ref`
-    /// 
-    /// After calling this function, the `Ref` won't be available anymore. It 
+    ///
+    /// After calling this function, the `Ref` won't be available anymore. It
     /// will be possible to borrow the `PRefCell` mutably. The new
     /// `PRefCell` has a new location with the same data.
     fn pfrom(other: RefMut<'_, T, A>, j: &Journal<A>) -> Self {
@@ -413,7 +413,6 @@ impl<T: PSafe, A: MemPool> PFrom<T, A> for PRefCell<T, A> {
         Self::new(value)
     }
 }
-
 
 impl<T: PSafe, A: MemPool> From<T> for PRefCell<T, A> {
     /// Crates a new `PRefCell`
@@ -483,13 +482,13 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
     }
 
     /// Returns a `LogNonNull` pointer to the data
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// `LogNonNull` does not dynamically check the borrowing rules. Also, it
     /// may outlive the data, leading to a segmentation fault. It is not
     /// recommended to use this function without necessary manual checks.
-    /// 
+    ///
     pub unsafe fn as_non_null_mut(&self, journal: &Journal<A>) -> LogNonNull<T, A> {
         let inner = &mut *self.value.get();
         #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
@@ -502,7 +501,7 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
 
     /// Returns a `NonNull` pointer to the data
     pub fn as_non_null(&self) -> NonNull<T> {
-        unsafe { 
+        unsafe {
             let inner = &mut *self.value.get();
             #[cfg(any(feature = "use_pspd", feature = "use_vspd"))] {
                 NonNull::new_unchecked(inner)
@@ -639,10 +638,10 @@ impl<'b, T: PSafe + ?Sized, A: MemPool> Ref<'b, T, A> {
 impl<T: PSafe + ?Sized, A: MemPool> Ref<'_, T, A> {
     /// Creates a new owner of `Ref` for a broader lifetime useful for
     /// letting it out from a function
-    /// 
+    ///
     /// This associative function obtains the ownership of the original `Ref`
     /// so that the number of immutably borrowers doesn't change
-    /// 
+    ///
     pub fn own<'a, 'b>(orig: Ref<'a, T, A>) -> Ref<'b, T, A> {
         let res = Ref {
             value: orig.value,
@@ -698,11 +697,11 @@ impl<T: ?Sized, A: MemPool> !Sync for RefMut<'_, T, A> {}
 impl<T: PSafe + ?Sized, A: MemPool> RefMut<'_, T, A> {
     /// Creates a new owner of `RefMut` for a broader lifetime useful for
     /// letting it out from a function
-    /// 
+    ///
     /// This associative function obtains the ownership of the original `RefMut`
     /// so that there will be still only one mutable owner to the underlying
     /// data.
-    /// 
+    ///
     pub fn own<'a, 'b>(orig: RefMut<'a, T, A>) -> RefMut<'b, T, A> {
         let res = RefMut {
             value: orig.value,

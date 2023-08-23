@@ -33,7 +33,7 @@ void pm_close() {
 
 void *pm_alloc(size_t len) {
     void *dst = NULL;
-    if(pmemobj_zalloc(pop, dst, TOID_TYPE_NUM(uint8_t), len)==0) 
+    if(pmemobj_zalloc(pop, dst, TOID_TYPE_NUM(uint8_t), len)==0)
         return dst;
     return NULL;
 }
@@ -61,7 +61,6 @@ void *pm_alloc(size_t len) {
 
 #endif
 
-
 void *worker(void *vargp)
 {
     for(int i=0; i<cnt; i++)
@@ -83,11 +82,11 @@ main(int argc, char *argv[])
         printf("usage: %s [block-size] [count/thread] [threads] \n", argv[0]);
         return 1;
     }
-    
+
     if (pm_alloc()) {
         return 1;
     }
-    
+
     len = atoi(argv[1]);
     cnt = atoi(argv[2]);
     thr = atoi(argv[3]);
@@ -97,7 +96,7 @@ main(int argc, char *argv[])
     pthread_t thread_id;
     pthread_t *ids = (pthread_t*)malloc(sizeof(pthread_t)*thr);
     for(int t=0; t<thr; t++) {
-        pthread_create(&ids[t], NULL, worker, NULL); 
+        pthread_create(&ids[t], NULL, worker, NULL);
     }
     for(int t=0; t<thr; t++) {
         pthread_join(ids[t], NULL);

@@ -12,7 +12,7 @@
  * General Public License along with this program. If not, see
  * <http://www.gnu.org/licenses/>.
  */
- 
+
 #include <cassert>
 
 #include "log_mgr.hpp"
@@ -142,7 +142,7 @@ void nvm_barrier(void *p)
     full_fence();
     nvm_clflush((char*)p);
     full_fence();
-#endif    
+#endif
 }
 
 // TODO: should this belong to the log manager or the region
@@ -165,7 +165,7 @@ void nvm_psync_acq(void *start_addr, size_t sz)
 }
 
 #if defined(_USE_TABLE_FLUSH)
-void AsyncDataFlush(void *p) 
+void AsyncDataFlush(void *p)
 {
     assert(Atlas::LogMgr::hasInstance());
     Atlas::LogMgr::getInstance().asyncDataFlush(p);
@@ -185,5 +185,3 @@ void NVM_PrintStats()
     Atlas::LogMgr::getInstance().printStats();
 }
 #endif
-
-

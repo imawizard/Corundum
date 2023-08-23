@@ -3,7 +3,6 @@
 full_path=$(realpath $0)
 dir_path=$(dirname $full_path)
 
-
 all=true
 scale=false
 pmdk=false
@@ -124,7 +123,7 @@ fi
 if $all || $scale; then
     rs=(1)
     cs=`seq 0 15`
-    
+
     echo -n "p/c," > $dir_path/outputs/scale.csv
     (for c in ${cs[@]}; do
         echo -n "$c,"
@@ -190,7 +189,7 @@ if $all || $micro; then
     echo ",Mean (ns),STD (ns),Mean (ns),STD (ns)" >> $m
     for t in ${tags[@]}; do
         echo "${t//\\/},$(avg $p $t),$(std $p $t),$(avg $d $t),$(std $d $t)" >> $m
-    done 
+    done
 fi
 
 if $all || $pmdk || $atlas || $go || $micro || $mnemosyne || $crndm; then

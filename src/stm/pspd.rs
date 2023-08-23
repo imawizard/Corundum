@@ -1,8 +1,8 @@
 //! Persistent Scratchpad Memory
-//! 
+//!
 //! This features is still under development. To enable it, you need to add
 //! `"use_pspd"` to the feature list.
-//! 
+//!
 
 use crate::cell::LazyCell;
 use crate::alloc::MemPool;
@@ -51,19 +51,19 @@ impl<A: MemPool> Page<A> {
         } else {
             let p = self as *mut Self as *mut u8;
             let p = p.add(mem::size_of::<Self>());
-            
+
             // First 8 bytes is org_off
             let p = p.add(self.len);
             *utils::read::<u64>(p) = org_off;
-            
+
             // Second 8 bytes is the relative distance
             let p = p.add(8);
             *utils::read::<usize>(p) = dist;
-            
+
             // The last bytes contain data
             let p = p.add(8);
             ptr::copy_nonoverlapping(val as *const _ as *const u8, p, size);
-    
+
             self.len += dist;
             utils::read(p)
         }

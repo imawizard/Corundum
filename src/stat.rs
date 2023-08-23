@@ -18,7 +18,7 @@ struct Data {
     cnt: u64,
     sum2: f64,
     min: u64,
-    max: u64, 
+    max: u64,
     points: HashMap<u64, u64>
 }
 
@@ -87,7 +87,7 @@ pub enum Measure<A: Any> {
 static mut HIST: Option<bool> = None;
 static mut POINTS: Option<bool> = None;
 
-static mut STAT: LazyCell<Mutex<HashMap<(ThreadId, &'static str), Stat>>> = 
+static mut STAT: LazyCell<Mutex<HashMap<(ThreadId, &'static str), Stat>>> =
     LazyCell::new(|| Mutex::new(HashMap::new()));
 
 #[inline]
@@ -421,7 +421,7 @@ Logging       {:>14} ns    avg(ns): {:<8}    cnt: {}",
                 k, v.sum, avg, sd,
                 v.min, v.max, v.cnt));
         }
-        
+
         lns.sort_by(|x, y| x.cmp(&y));
         for ln in &lns {
             writeln!(f, "{}", ln)?;
@@ -440,7 +440,7 @@ Logging       {:>14} ns    avg(ns): {:<8}    cnt: {}",
                     _plots.push(plot);
                 }
             }
-            
+
             _plots.sort_by(|x, y| x.replace('─',"").cmp(&y.replace('─',"")));
             for pl in &_plots {
                 writeln!(f, "{}", pl)?;
@@ -510,15 +510,15 @@ fn plot(data: &HashMap<u64, u64>, x: f32, freq_thr: u64) -> Option<(Vec<String>,
         }
         if cnt > 0 {
             let avg = (sum / cnt) as i64;
-    
+
             for (t,freq) in data {
                 let t = (*t as i64) - avg;
-    
+
                 let t = (x * (t as f32 * 40.0) / avg as f32) as i64;
                 let t = 0.max(79.min(t + 40));
                 freqs[t as usize] += freq;
             }
-    
+
             let v_max = freqs.iter().max()?;
             for i in 0..freqs.len() {
                 let f = (freqs[i] * 19) / v_max;

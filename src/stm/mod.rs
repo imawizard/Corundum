@@ -16,7 +16,7 @@ pub use journal::*;
 pub use log::*;
 
 /// Atomically executes commands
-/// 
+///
 /// See [`MemPool::transaction()`](../alloc/trait.MemPool.html#method.transaction)
 /// for more details.
 pub fn transaction<T, F: FnOnce(&'static Journal<A>) -> T, A: MemPool>(body: F) -> Result<T>

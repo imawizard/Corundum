@@ -207,7 +207,7 @@ btree_map_find_dest_node(struct btree_map *map,
 			up->items[0] = m;
 			up->slots[0] = n;
 			up->slots[1] = right;
-            
+
 			map->root = up;
 			n = up;
 		}
@@ -490,7 +490,7 @@ void*
 btree_map_remove(uint64_t key)
 {
 	void *ret = NULL;
-	
+
     pthread_mutex_lock(map->root_lock);
     ret = btree_map_remove_item(map, map->root, NULL, key, 0);
     pthread_mutex_unlock(map->root_lock);

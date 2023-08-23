@@ -26,9 +26,9 @@ use std::{fmt, intrinsics};
 /// ```compile_fail
 /// use corundum::default::*;
 /// use std::sync::Mutex;
-/// 
+///
 /// type P = Allocator;
-/// 
+///
 /// let obj = P::open::<Parc<Mutex<i32>>>("foo.pool", O_CF).unwrap();
 /// //                       ^ std::sync::Mutex is not PSafe
 ///
@@ -44,7 +44,7 @@ use std::{fmt, intrinsics};
 ///         let obj = obj.lock().unwrap();
 ///         // Some statements ...
 ///     } // <-- release the lock here
-///     
+///
 ///     // A crash may happen here after another thread has used updated data
 ///     // which leads to an inconsistent state
 /// });
@@ -56,9 +56,9 @@ use std::{fmt, intrinsics};
 ///
 /// ```
 /// use corundum::default::*;
-/// 
+///
 /// type P = Allocator;
-/// 
+///
 /// // PMutex<T> = corundum::sync::Mutex<T,P>
 /// let obj = P::open::<Parc<PMutex<i32>>>("foo.pool", O_CF).unwrap();
 ///
@@ -74,7 +74,7 @@ use std::{fmt, intrinsics};
 ///         let obj = obj.lock(j); // <-- does not block the current thread
 ///         // Some statements ...
 ///     }
-///     
+///
 /// }); // <-- release the lock here after committing or rolling back the transaction
 /// ```
 ///
@@ -144,12 +144,12 @@ unsafe impl<T, A: MemPool> PSend for PMutex<T, A> {}
 
 impl<T, A: MemPool> PMutex<T, A> {
     /// Creates a new `Mutex`
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use corundum::alloc::heap::*;
-    /// 
+    ///
     /// Heap::transaction(|j| {
     ///     let p = Parc::new(PMutex::new(10), j);
     /// }).unwrap();
@@ -208,7 +208,7 @@ impl<T, A: MemPool> PMutex<T, A> {
                 #[cfg(not(any(feature = "no_pthread", windows)))]
                 libc::pthread_mutex_unlock(lock);
 
-                #[cfg(any(feature = "no_pthread", windows))] 
+                #[cfg(any(feature = "no_pthread", windows))]
                 intrinsics::atomic_store_release(lock, 0);
 
                 panic!("Cannot have multiple instances of MutexGuard");
@@ -217,31 +217,31 @@ impl<T, A: MemPool> PMutex<T, A> {
     }
 
     /// Acquires a mutex, blocking the current thread until it is able to do so.
-    /// 
+    ///
     /// This function will block the local thread until it is available to
     /// acquire the mutex. Upon returning, the thread is the only thread with
     /// the lock held. An RAII guard is returned to keep track of borrowing
     /// data. It creates an [`UnlockOnCommit`] log to unlock the mutex when
     /// transaction is done.
-    /// 
+    ///
     /// If the local thread already holds the lock, `lock()` does not block it.
-    /// The mutex remains locked until the transaction is committed. 
+    /// The mutex remains locked until the transaction is committed.
     /// Alternatively, [`PMutex`] can be used as a compact form of `Mutex`.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use corundum::default::*;
     /// use std::thread;
-    /// 
+    ///
     /// type P = Allocator;
-    /// 
+    ///
     /// let obj = P::open::<Parc<PMutex<i32>>>("foo.pool", O_CF).unwrap();
-    /// 
+    ///
     /// // Using short forms in the pool module, there is no need to specify the
     /// // pool type, as follows:
     /// // let obj = P::open::<Parc<PMutex<i32>>>("foo.pool", O_CF).unwrap();
-    /// 
+    ///
     /// let obj = Parc::demote(&obj);
     /// thread::spawn(move || {
     ///     transaction(move |j| {
@@ -251,10 +251,10 @@ impl<T, A: MemPool> PMutex<T, A> {
     ///     }).unwrap();
     /// }).join().expect("thread::spawn failed");
     /// ```
-    /// 
+    ///
     /// [`PMutex`]: ../default/type.PMutex.html
     /// [`UnlockOnCommit`]: ../stm/enum.LogEnum.html#variant.UnlockOnCommit
-    /// 
+    ///
     pub fn lock<'a>(&'a self, journal: &'a Journal<A>) -> MutexGuard<'a, T, A> {
         self.raw_lock(journal);
         unsafe { MutexGuard::new(self, journal) }
@@ -279,10 +279,10 @@ impl<T, A: MemPool> PMutex<T, A> {
                     Log::unlock_on_commit(&self.inner.lock as *const _ as u64, journal);
                     true
                 } else {
-                    #[cfg(not(any(feature = "no_pthread", windows)))] 
+                    #[cfg(not(any(feature = "no_pthread", windows)))]
                     libc::pthread_mutex_unlock(lock);
 
-                    #[cfg(any(feature = "no_pthread", windows))] 
+                    #[cfg(any(feature = "no_pthread", windows))]
                     intrinsics::atomic_store_release(lock, 0);
 
                     panic!("Cannot have multiple instances of MutexGuard");
@@ -293,9 +293,8 @@ impl<T, A: MemPool> PMutex<T, A> {
         }
     }
 
-
     /// Attempts to acquire this lock.
-    /// 
+    ///
     /// If the lock could not be acquired at this time, then [`Err`] is returned.
     /// Otherwise, an RAII guard is returned. The lock will be unlocked when the
     /// owner transaction ends.
@@ -312,9 +311,9 @@ impl<T, A: MemPool> PMutex<T, A> {
     /// ```
     /// use corundum::default::*;
     /// use std::thread;
-    /// 
+    ///
     /// type P = Allocator;
-    /// 
+    ///
     /// let obj = P::open::<Parc<PMutex<i32>>>("foo.pool", O_CF).unwrap();
     ///
     /// let a = Parc::demote(&obj);
@@ -330,12 +329,12 @@ impl<T, A: MemPool> PMutex<T, A> {
     ///         }
     ///     }).unwrap();
     /// }).join().expect("thread::spawn failed");
-    /// 
+    ///
     /// transaction(|j| {
     ///     assert_eq!(*obj.lock(j), 10);
     /// }).unwrap();
     /// ```
-    /// 
+    ///
     /// [`PMutex`]: ../default/type.PMutex.html
     pub fn try_lock<'a>(&'a self, journal: &'a Journal<A>) -> TryLockResult<MutexGuard<'a, T, A>> {
         if self.raw_trylock(journal) {

@@ -24,7 +24,7 @@ pub enum LogEnum {
     /// drops the allocation when the high-level transaction is aborted. This is
     /// useful for temporarily unowned allocations, such as slices, because they
     /// are not deallocated via RAII.
-    /// 
+    ///
     /// [`DropOnFailure`]: ../alloc/trait.MemPool.html#method.drop_on_failure
     DropOnAbort(u64, usize),
 
@@ -68,13 +68,13 @@ impl Debug for LogEnum {
 }
 
 /// A data-log notification type
-/// 
+///
 /// This is used to notify the owner that the underlying data is logged, so that
 /// theres is no need for further log taking. This is done by updating a flag of
 /// type `u8` which is a part of the owner's structure. The `Notifier` object
 /// keeps a pointer to the flag and updates it accordingly. The pointer is
 /// persistent meaning that it remains valid after restart of crash.
-/// 
+///
 #[derive(PartialEq, Eq)]
 pub enum Notifier<A: MemPool> {
     /// Atomically update the log flag
@@ -123,7 +123,7 @@ impl<A: MemPool> Notifier<A> {
 
     #[inline]
     /// Returns the offset of the log flag in the pool.
-    /// 
+    ///
     /// The notifier contains a pointer to the flag which is a part of the owner
     /// construct. If there is no specified flag, it returns `u64::MAX`.
     pub fn off(&self) -> u64 {
@@ -137,21 +137,21 @@ impl<A: MemPool> Notifier<A> {
 }
 
 /// The `Log` type for pool `A`
-/// 
+///
 /// It is pair of [`LogEnum`] and [`Notifier`] to keep a log in the [`Journal`].
 /// A [`Journal`] comprises multiple pages with a fixed number of log slots.
 /// Each slot can be filled by one `Log`. The [`Journal`] object uses these logs
 /// to provide data consistency. Logs reside in the persistent region and their
 /// durability is ensured by flushing the cache lines after each log.
-/// 
+///
 /// The default mechanism of taking logs is copy-on-write which creates a log when
 /// the object is mutably dereferenced. This requires two `clflush`es: one for
 /// the log, and one for the update to the original data.
-/// 
+///
 /// [`Journal`]: ./struct.Journal.html
 /// [`LogEnum`]: ./enum.LogEnum.html
 /// [`Notifier`]: ./enum.Notifier.html
-/// 
+///
 pub struct Log<A: MemPool>(LogEnum, Notifier<A>);
 
 impl<A: MemPool> Copy for Log<A> {}
@@ -185,29 +185,29 @@ impl<A: MemPool> Default for Log<A> {
 
 impl<A: MemPool> Log<A> {
     /// Sets the `off` and `len` of the log
-    /// 
+    ///
     /// This function is used for low-level atomic allocation. The algorithm is
     /// as follows:
-    /// 
+    ///
     /// 1. Create a neutral drop log (`off = u64::MAX`) in a log slot in the [`Journal`]
     /// 2. Prepare allocation using [`pre_alloc()`]
     /// 3. Add a low-level log for updating the `off` and `len` of the drop log
     /// using `set` function
     /// 4. Perform the prepared changes to the allocator
-    /// 
+    ///
     /// Note that the deallocation of owned objects are handled through RAII.
     /// To reclaim the allocation of any sort on a failure, low-level
     /// `DropOnFailure` log is provided with the allocation.
-    /// 
+    ///
     /// If a crash happens before step 4, all changes are discarded and the
     /// drop log remains neutral. If a crash happens in the middle of step 4,
     /// the recovery procedure continues performing the changes, including the
     /// low-level logs for updating the drop log. Once it has the high-level
     /// drop log, the high-level recovery procedure reclaims the allocation as
     /// the crash happened inside a transaction.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use corundum::default::*;
     /// # use corundum::stm::Log;
@@ -219,24 +219,24 @@ impl<A: MemPool> Log<A> {
     ///     // allocator's ring buffer. Unlike that, this log is stored in the
     ///     // journal object.
     ///     let mut log = Log::drop_on_failure(u64::MAX, 1, j);
-    ///    
+    ///
     ///     // Prepare an allocation. The allocation is not durable yet. In case
     ///     // of a crash, the prepared allocated space is gone. It is fine
     ///     // because it has not been used. The `atomic_` functions
     ///     // form a low-level atomic section.
     ///     let (obj, off, len, zone) = P::atomic_new([1,2,3,4,5]);
-    ///    
+    ///
     ///     // Set the offset and size of the allocation to make the log valid.
     ///     // Note that the changes will be effective after the allocation is
     ///     // successfully performed.
     ///     log.set(off, len, zone);
-    ///     
+    ///
     ///     // It is fine to work with the prepared raw pointer. All changes in
     ///     // the low-level atomic section are considered as part of the
     ///     // allocation and will be gone in case of a crash, as the allocation
     ///     // will be dropped.
     ///     obj[1] = 20;
-    ///    
+    ///
     ///     // Transaction ends here. The perform function sets the `operating`
     ///     // flag to show that the prepared changes are being materialized.
     ///     // This flag remains set until the end of materialization. In case
@@ -247,7 +247,7 @@ impl<A: MemPool> Log<A> {
     ///     P::perform(zone);
     /// }).unwrap();
     /// ```
-    /// 
+    ///
     /// [`Journal`]: ./journal/struct.Journal.html
     /// [`pre_alloc()`]: ../alloc/trait.MemPool.html#method.pre_alloc
     /// [`validate()`]: ../alloc/trait.MemPool.html#method.validate
@@ -300,7 +300,7 @@ fn dump_data<A: MemPool>(tag: &str, off: u64, len: usize) {
     use term_painter::ToStyle;
 
     if *crate::utils::VERBOSE {
-        print!("{:<8} {}", A::name().to_owned() + ":", 
+        print!("{:<8} {}", A::name().to_owned() + ":",
             BrightBlue.paint(format!("{:>10}  ", tag)));
         for i in 0..len {
             let d = unsafe { A::get_unchecked::<u8>(off + i as u64) };
@@ -310,7 +310,7 @@ fn dump_data<A: MemPool>(tag: &str, off: u64, len: usize) {
                 print!("{:>21}", " ");
             }
         }
-    
+
         println!();
     }
 }
@@ -364,7 +364,7 @@ impl<A: MemPool> Log<A> {
             //     pointer.replace(log.replace(pointer.off()));
 
             //     debug_assert_eq!(
-            //         crate::utils::as_slice(pointer.as_ref()), 
+            //         crate::utils::as_slice(pointer.as_ref()),
             //         crate::utils::as_slice(log.as_ref()),
             //         "Log is not the same as the original data");
 
@@ -489,13 +489,13 @@ impl<A: MemPool> Log<A> {
         let _perf = crate::stat::Measure::<A>::MutexLog(std::time::Instant::now());
 
         log!(A, Yellow, "NEW LOG", "FOR:         v@{:<18} UnlockOnCommit", virt_addr);
-        
+
         #[cfg(any(feature = "no_pthread", windows))] {
             let b = &mut *(virt_addr as *mut (bool, u64));
             if b.0 { return; }
         }
         #[cfg(not(any(feature = "no_pthread", windows)))] {
-            let b = &mut *(virt_addr as *mut (bool, libc::pthread_mutex_t, 
+            let b = &mut *(virt_addr as *mut (bool, libc::pthread_mutex_t,
                 libc::pthread_mutexattr_t));
             if b.0 { return; }
         };
@@ -521,19 +521,19 @@ impl<A: MemPool> Log<A> {
 
         if *log != u64::MAX && *src != u64::MAX {
             log!(A, Magenta, "ROLLBACK", "FOR:         ({:>6x}:{:<6x}) = {:<6} DataLog({})",
-                *src, *src as usize + (len - 1), len, log   
+                *src, *src as usize + (len - 1), len, log
             );
             #[cfg(feature = "verbose")] {
                 dump_data::<A>(" ORG", *src, *len);
                 dump_data::<A>(" LOG", *log, *len);
-            } 
+            }
             unsafe {
                 let src = A::get_mut_unchecked::<u8>(*src);
                 let log = A::get_mut_unchecked::<u8>(*log);
                 ptr::copy_nonoverlapping(log, src, *len);
                 persist_with_log::<_,A>(log, *len, false);
             }
-                    
+
             #[cfg(feature = "check_allocator_cyclic_links")]
             debug_assert!(A::verify());
         }
@@ -548,7 +548,7 @@ impl<A: MemPool> Log<A> {
                 Self::rollback_datalog(src, log, len);
                 self.notify(0);
                 self.1 = Notifier::None;
-                    
+
                 #[cfg(feature = "check_allocator_cyclic_links")]
                 debug_assert!(A::verify());
             }
@@ -556,7 +556,7 @@ impl<A: MemPool> Log<A> {
         }
     }
 
-    pub(crate) unsafe fn rollback_drop_on_abort(&mut self, 
+    pub(crate) unsafe fn rollback_drop_on_abort(&mut self,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
@@ -575,7 +575,7 @@ impl<A: MemPool> Log<A> {
                     let z = A::pre_dealloc(A::get_mut_unchecked(*src), *len);
                     A::log64(A::off_unchecked(src), u64::MAX, z);
                     A::perform(z);
-                    
+
                     #[cfg(feature = "check_allocator_cyclic_links")]
                     debug_assert!(A::verify());
                 }
@@ -585,7 +585,7 @@ impl<A: MemPool> Log<A> {
     }
 
     /// Recovers from the crash or power failure
-    pub(crate) unsafe fn recover(&mut self, rollback: bool, 
+    pub(crate) unsafe fn recover(&mut self, rollback: bool,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
@@ -597,7 +597,7 @@ impl<A: MemPool> Log<A> {
                     Self::rollback_datalog(src, log, layout);
                     self.notify(0);
                     self.1 = Notifier::None;
-                    
+
                     #[cfg(feature = "check_allocator_cyclic_links")]
                     debug_assert!(A::verify());
                 }
@@ -615,7 +615,7 @@ impl<A: MemPool> Log<A> {
                         let z = A::pre_dealloc(A::get_mut_unchecked(*src), *len);
                         A::log64(A::off_unchecked(src), u64::MAX, z);
                         A::perform(z);
-                    
+
                         #[cfg(feature = "check_allocator_cyclic_links")]
                         debug_assert!(A::verify());
                     }
@@ -637,7 +637,7 @@ impl<A: MemPool> Log<A> {
                     }
                     A::log64(A::off_unchecked(src), u64::MAX, z);
                     A::perform(z);
-                    
+
                     #[cfg(feature = "check_allocator_cyclic_links")]
                     debug_assert!(A::verify());
                 }
@@ -668,7 +668,7 @@ impl<A: MemPool> Log<A> {
     }
 
     /// Commits changes
-    pub(crate) fn commit_dealloc(&mut self, 
+    pub(crate) fn commit_dealloc(&mut self,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {
@@ -688,7 +688,7 @@ impl<A: MemPool> Log<A> {
                         let z = A::pre_dealloc(A::get_mut_unchecked(*src), *len);
                         A::log64(A::off_unchecked(src), u64::MAX, z);
                         A::perform(z);
-                    
+
                         #[cfg(feature = "check_allocator_cyclic_links")]
                         debug_assert!(A::verify());
                     }
@@ -699,13 +699,13 @@ impl<A: MemPool> Log<A> {
     }
 
     /// Clears this log and notifies the owner
-    /// 
+    ///
     /// * If it is a [`DataLog`](./enum.LogEnum.html#variant.DataLog), it reclaims
     /// the allocation for the log.
     /// * If it is a [`UnlockOnCommit`](./enum.LogEnum.html#variant.UnlockOnCommit),
     /// it unlocks the mutex.
-    /// 
-    pub unsafe fn clear(&mut self, 
+    ///
+    pub unsafe fn clear(&mut self,
         #[cfg(feature = "check_double_free")]
         check_double_free: &mut HashSet<u64>
     ) {

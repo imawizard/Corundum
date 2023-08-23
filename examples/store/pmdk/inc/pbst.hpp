@@ -36,7 +36,7 @@ public:
 	pbst() { head = nullptr; }
 
 	friend void perform_pbst(vector<string> args);
-    
+
 private:
     void insert_impl(persistent_ptr<pmem_entry> &node, uint64_t value) {
         if (node == nullptr) {

@@ -156,27 +156,27 @@ macro_rules! static_inner {
 ///     TrackAlloc::dealloc(p, 1);
 /// }
 /// ```
-/// 
+///
 /// The following example shows how to use [`pool!()`] to define a multiple
 /// pools.
-/// 
+///
 /// ```
 /// # use corundum::alloc::*;
 /// # use corundum::*;
 /// // Declare p1 module
 /// pool!(p1);
-/// 
+///
 /// // Declare p2 module
 /// pool!(p2);
-/// 
+///
 /// let _pool1 = p1::Allocator::open_no_root("p1.pool", O_CF).unwrap();
 /// let _pool2 = p2::Allocator::open_no_root("p2.pool", O_CF).unwrap();
-/// 
+///
 /// transaction(|j| {
 ///     // Create a Pbox object in p1
 ///     let b = p1::Pbox::new(10, j);
 /// }).unwrap();
-/// 
+///
 /// transaction(|j| {
 ///     // Create a Prc object in p2
 ///     let p = p2::Prc::new(10, j);
@@ -192,7 +192,7 @@ macro_rules! static_inner {
 ///
 /// `pmem` crate provides `Pbox`, `Prc`, and `Parc` for memory management using
 /// RAII. They internally use the unsafe methods.
-/// 
+///
 /// [`pool!()`]: ./default/macro.pool.html
 /// [`Allocator`]: ../default/struct.Allocator.html
 pub unsafe trait MemPoolTraits
@@ -204,19 +204,19 @@ where
         std::any::type_name::<Self>()
     }
 
-    /// Opens a new pool without any root object. This function is for testing 
+    /// Opens a new pool without any root object. This function is for testing
     /// and is not useful in real applications as none of the allocated
     /// objects in persistent region is durable. The reason is that they are not
     /// reachable from a root object as it doesn't exists. All objects can live
     /// only in the scope of a transaction.
-    /// 
+    ///
     /// # Flags
     ///   * O_C:    create a memory pool file if not exists
     ///   * O_F:    format the memory pool file
     ///   * O_CNE:  create a memory pool file if not exists
     ///   * O_CF:   create and format a new memory pool file
     ///   * O_CFNE: create and format a memory pool file only if not exists
-    /// 
+    ///
     /// See [`open_flags`](./open_flags/index.html) for more options.
     fn open_no_root(_path: &str, _flags: u32) -> Result<PoolGuard<Self>> {
         unimplemented!()
@@ -244,14 +244,14 @@ where
     /// immutable reference to the root object. The pool remains open as long as
     /// the root object is in the scope. Like other persistent objects, the root
     /// object is immutable and it is modifiable via interior mutability.
-    /// 
+    ///
     /// # Flags
     ///   * O_C:    create a memory pool file if not exists
     ///   * O_F:    format the memory pool file
     ///   * O_CNE:  create a memory pool file if not exists
     ///   * O_CF:   create and format a new memory pool file
     ///   * O_CFNE: create and format a memory pool file only if not exists
-    /// 
+    ///
     /// See [`open_flags`](./open_flags/index.html) for more options.
     ///
     /// # Examples
@@ -593,7 +593,7 @@ where
     /// after this function successfully returns. To allocate memory in
     /// a failure-atomic manner, use [`pre_alloc`], [`Log::drop_on_failure`],
     /// and [`perform`] functions respectively.
-    /// 
+    ///
     /// [`pre_alloc`]: #method.pre_alloc
     /// [`Log::drop_on_failure`]: ../stm/struct.Log.html#method.drop_on_failure
     /// [`perform`]: #method.pre_alloc
@@ -626,18 +626,18 @@ where
     }
 
     /// Prepares allocation without performing it
-    /// 
+    ///
     /// This function is used internally for low-level atomicity in memory
     /// allocation. As an example, please see [`drop_on_failure`].
-    /// 
+    ///
     /// It returns a 4-tuple:
     ///     1. Raw pointer
     ///     2. Offset
     ///     3. Size
     ///     4. Zone index
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use corundum::default::*;
     /// # type P = Allocator;
@@ -648,20 +648,20 @@ where
     ///     P::perform(z);
     /// }
     /// ```
-    /// 
+    ///
     /// [`drop_on_failure`]: #method.drop_on_failure
-    /// 
+    ///
     unsafe fn pre_alloc(size: usize) -> (*mut u8, u64, usize, usize);
 
     /// Prepares deallocation without performing it
-    /// 
+    ///
     /// This function is used internally for low-level atomicity in memory
     /// allocation. As an example, please see [`drop_on_failure`].
-    /// 
+    ///
     /// It returns the zone in which the deallocation happens.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use corundum::default::*;
     /// # type P = Allocator;
@@ -675,27 +675,27 @@ where
     ///     assert_ne!(*ptr, 10);
     /// }
     /// ```
-    /// 
+    ///
     /// [`drop_on_failure`]: #method.drop_on_failure
-    /// 
+    ///
     unsafe fn pre_dealloc(ptr: *mut u8, size: usize) -> usize;
 
-    /// Adds a low-level log to update as 64-bit `obj` to `val` when 
+    /// Adds a low-level log to update as 64-bit `obj` to `val` when
     /// [`perform()`] is called. As an example, please see [`Log::set()`].
-    /// 
+    ///
     /// [`perform()`]: #method.perform
     /// [`Log::set()`]: ../stm/struct.Log.html#method.set
-    /// 
+    ///
     unsafe fn log64(_off: u64, _val: u64, _zone: usize) {
         unimplemented!()
     }
 
-    /// Adds a low-level `DropOnFailure` log to perform inside the allocator. 
+    /// Adds a low-level `DropOnFailure` log to perform inside the allocator.
     /// This is internally used to atomically allocate a new objects. Calling
     /// [`perform()`] drops these logs.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use corundum::default::*;
     /// # type P = Allocator;
@@ -706,19 +706,19 @@ where
     ///     // because it has not been used. The `pre_` and `perform` functions
     ///     // form a low-level atomic section.
     ///     let (obj, off, len, zone) = P::pre_alloc(1);
-    /// 
+    ///
     ///     // Create a low-level DropOnFailure log. This log is going to be used
     ///     // when a crash happens while performing the changes made by the
     ///     // preparation functions. If a crash happens before that, these logs
     ///     // will be discarded.
     ///     P::drop_on_failure(off, len, zone);
-    ///     
+    ///
     ///     // It is fine to work with the prepared raw pointer. All changes in
     ///     // the low-level atomic section are considered as part of the
     ///     // allocation and will be gone in case of a crash, as the allocation
     ///     // will be dropped.
     ///     *obj = 20;
-    /// 
+    ///
     ///     // Transaction ends here. The perform function sets the `operating`
     ///     // flag to show that the prepared changes are being materialized.
     ///     // This flag remains set until the end of materialization. In case
@@ -729,41 +729,40 @@ where
     ///     P::perform(zone);
     /// }
     /// ```
-    /// 
+    ///
     /// [`perform()`]: #method.perform
     /// [`Journal`]: ../stm/journal/struct.Journal.html
-    /// 
+    ///
     unsafe fn drop_on_failure(_off: u64, _len: usize, _zone: usize) {}
-
 
     /// In case of not using [`pre_alloc`] or [`pre_dealloc`], starts a low-level
     /// atomic section on a given zone.
-    /// 
+    ///
     /// [`pre_alloc`]: #method.pre_alloc
     /// [`pre_dealloc`]: #method.pre_dealloc
-    /// 
+    ///
     unsafe fn prepare(_zone: usize) { }
 
     /// Performs the prepared operations
-    /// 
+    ///
     /// It materializes the changes made by [`pre_alloc`](#method.pre_alloc),
     /// [`pre_dealloc`](#method.pre_dealloc), and
     /// [`pre_realloc`](#method.pre_realloc). See [`drop_on_failure`] for more
     /// details.
-    /// 
+    ///
     /// [`drop_on_failure`]: #method.drop_on_failure
-    /// 
+    ///
     unsafe fn perform(_zone: usize) { }
 
     /// Discards the prepared operations
-    /// 
+    ///
     /// Discards the changes made by [`pre_alloc`](#method.pre_alloc),
     /// [`pre_dealloc`](#method.pre_dealloc), and
     /// [`pre_realloc`](#method.pre_realloc).  See [`drop_on_failure`] for more
     /// details.
-    /// 
+    ///
     /// [`drop_on_failure`]: #method.drop_on_failure
-    /// 
+    ///
     unsafe fn discard(_zone: usize) { }
 
     /// Behaves like `alloc`, but also ensures that the contents
@@ -816,7 +815,7 @@ where
     }
 
     /// Allocates new memory and then copies `x` into it with `DropOnFailure` log
-    unsafe fn new_copy<'a, T: 'a>(x: &T, j: &Journal<Self>) -> &'a mut T 
+    unsafe fn new_copy<'a, T: 'a>(x: &T, j: &Journal<Self>) -> &'a mut T
     where T: ?Sized, Self: MemPool {
         let s = mem::size_of_val(x);
         debug_assert!(s != 0, "Cannot allocated ZST");
@@ -1128,46 +1127,46 @@ where
     }
 
     /// Executes commands atomically with respect to system crashes
-    /// 
+    ///
     /// The `transaction` function takes a closure with one argument of type
     /// `&Journal<Self>`. Before running the closure, it atomically creates a
     /// [`Journal`] object, if required, and prepares an immutable reference to
     /// it. Since there is no other safe way to create a `Journal` object, it
     /// ensures that every function taking an argument of type `&Journal<P>` is
     /// enforced to be invoked from a transaction.
-    /// 
+    ///
     /// The captured types are bounded to be [`TxInSafe`], unless explicitly
     /// asserted otherwise using [`AssertTxInSafe`] type wrapper. This
     /// guarantees the volatile state consistency, as well as the persistent
     /// state.
-    /// 
+    ///
     /// The returned type should be [`TxOutSafe`]. This prevents sending out
     /// unreachable persistent objects. The only way out of a transaction for
     /// a persistent object is to be reachable by the root object.
     ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use corundum::default::*;
-    /// 
+    ///
     /// type P = Allocator;
-    /// 
+    ///
     /// let root = P::open::<PCell<i32>>("foo.pool", O_CF).unwrap();
-    /// 
+    ///
     /// let old = root.get();
     /// let new = Allocator::transaction(|j| {
     ///     root.set(root.get() + 1, j);
     ///     root.get()
     /// }).unwrap();
-    /// 
+    ///
     /// assert_eq!(new, old + 1);
     /// ```
-    /// 
+    ///
     /// [`Journal`]: ../stm/journal/struct.Journal.html
     /// [`TxInSafe`]: ../trait.TxInSafe.html
     /// [`TxOutSafe`]: ../trait.TxOutSafe.html
     /// [`AssertTxInSafe`]: ../struct.AssertTxInSafe.html
-    /// 
+    ///
     #[inline]
     #[track_caller]
     fn transaction<T, F: FnOnce(&'static Journal<Self>) -> T>(body: F) -> Result<T>
@@ -1177,7 +1176,7 @@ where
     {
         #[cfg(feature = "stat_perf")]
         let _perf = crate::stat::Measure::<Self>::Transaction;
-        
+
         #[cfg(feature = "check_allocator_cyclic_links")]
         debug_assert!(Self::verify());
 
@@ -1198,7 +1197,7 @@ where
                     body({
                         #[cfg(feature = "stat_perf")]
                         let _perf = crate::stat::Measure::<Self>::Logging(std::time::Instant::now());
-                        
+
                         let j = Journal::<Self>::current(true).unwrap();
                         *j.1 += 1;
                         let journal = as_mut(j.0);
@@ -1288,17 +1287,17 @@ impl<P: MemPoolTraits> Drop for PoolGuard<P> {
     }
 }
 
-pub unsafe trait MemPool: 
-    'static + 
-    MemPoolTraits + 
-    Sized + 
-    Default + 
+pub unsafe trait MemPool:
+    'static +
+    MemPoolTraits +
+    Sized +
+    Default +
     Clone +
     Copy +
-    PSafe + 
-    TxInSafe + 
-    LooseTxInUnsafe + 
-    RefUnwindSafe + 
+    PSafe +
+    TxInSafe +
+    LooseTxInUnsafe +
+    RefUnwindSafe +
     UnwindSafe {}
 
 pub(crate) fn create_file(filename: &str, size: u64) -> Result<()> {
