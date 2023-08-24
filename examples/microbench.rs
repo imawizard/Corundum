@@ -1,6 +1,8 @@
 #[cfg(target_arch = "x86_64")]
 mod run {
 
+    use std::arch::asm;
+
     use corundum::default::{Journal, *};
     use corundum::measure;
     use corundum::open_flags::*;
@@ -29,7 +31,7 @@ mod run {
         };
     }
 
-    fn main() {
+    pub fn main() {
         use std::env;
         use std::vec::Vec as StdVec;
 
@@ -298,7 +300,7 @@ mod run {
             measure!(format!("malloc({})", *s * 8), cnt, {
                 for _ in 0..cnt {
                     unsafe {
-                        std::alloc::alloc(layout);
+                        let _ = std::alloc::alloc(layout);
                     }
                 }
             });

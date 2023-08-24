@@ -270,6 +270,7 @@ impl<T: Debug, const N: usize> Debug for Ring<T, N> {
     }
 }
 
+#[cfg(test)]
 mod test {
     #![allow(unused)]
     use super::Ring;

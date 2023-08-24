@@ -108,7 +108,7 @@ dependencies = [
 name = "corundum"
 version = "0.4.1"
 dependencies = [
- "crndm_derive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crndm_derive",
  "impl-trait-for-tuples",
  "libc",
  "memmap",
@@ -130,17 +130,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "crndm_derive"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16ef01263783227e606d2acd7664fd30ee5667abbfe12142fd4e5f73e20886c1"
-dependencies = [
- "proc-macro2",
- "quote",
  "syn 1.0.109",
 ]
 
