@@ -1,0 +1,64 @@
+name: Build with various features
+
+on:
+  push:
+    branches: ["*"]
+  workflow_dispatch:
+
+jobs:
+  build-variants:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        lib:
+        #- std
+        - no_std
+        scratchpad:
+        -
+        - use_pspd
+        - use_vspd
+        persist-method:
+        -
+        - use_msync
+        - use_clflushopt
+        - use_clwb
+        - no_persist
+        store-method:
+        -
+        - use_ntstore
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: |
+        cargo build \
+          --no-default-features \
+          --features ${{ matrix.scratchpad }},${{ matrix.persist-method }},${{ matrix.store-method }},${{ matrix.lib }}
+
+  build-opt-ins:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        feature:
+        - cbindings
+        - check_access_violation
+        - check_allocator_cyclic_links
+        - check_double_free
+        - no_dyn_borrow_checking
+        - no_flush_alloc
+        - no_flush_updates
+        - no_log_rc
+        - pin_journals
+        - pthreads
+        - replace_with_log
+        - stat_log
+        #- stat_footprint
+        - stat_perf
+        - stat_print_flushes
+        #- verbose
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: |
+        cargo build \
+          --no-default-features \
+          --features no_std,${{ matrix.feature }}
