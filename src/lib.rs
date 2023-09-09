@@ -535,29 +535,46 @@ pub mod lib {
 
         #[macro_export]
         macro_rules! println {
-            () => {};
-            ($($arg:expr),*) => {{
-                $(let _ = $arg;)*
-            }};
+            () => { $crate::lib::println!("") };
+            ($($arg:tt)*) => {
+                let mes = format!("{}\0", format_args!($($arg)*));
+                #[allow(unused_unsafe)]
+                unsafe { $crate::lib::ffi::puts(mes.as_ptr() as *const $crate::lib::ffi::c_char) }
+            };
         }
 
         #[macro_export]
         macro_rules! eprintln {
-            () => {};
-            ($($arg:expr),*) => {{
-                $(let _ = $arg;)*
-            }};
+            () => { $crate::lib::eprintln!("") };
+            ($($arg:tt)*) => {
+                let mes = format!("{}\0", format_args!($($arg)*));
+                #[allow(unused_unsafe)]
+                unsafe { $crate::lib::ffi::perror(mes.as_ptr() as *const $crate::lib::ffi::c_char) }
+            };
         }
 
         #[macro_export]
         macro_rules! print {
-            () => {};
-            ($($arg:expr),*) => {{
-                $(let _ = $arg;)*
+            ($($arg:tt)*) => {{
+                let mes = format!("{}", format_args!($($arg)*));
+                for ch in mes.bytes().into_iter() {
+                    #[allow(unused_unsafe)]
+                    unsafe { $crate::lib::ffi::putchar(ch as $crate::lib::ffi::c_int) };
+                }
             }};
         }
 
         pub use {eprintln, print, println};
+
+        pub mod ffi {
+            pub use core::ffi::*;
+
+            extern "C" {
+                pub fn putchar(ch: c_int) -> c_int;
+                pub fn puts(s: *const c_char) -> c_int;
+                pub fn perror(s: *const c_char);
+            }
+        }
     }
 
     pub use self::core::*;

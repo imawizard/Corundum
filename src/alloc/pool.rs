@@ -1337,7 +1337,7 @@ impl<P: MemPoolTraits> Drop for PoolGuard<P> {
         }
 
         crate::__cfg_stat_perf!({
-            eprintln!("{}", crate::stat::report());
+            println!("{}", crate::stat::report());
         });
     }
 }

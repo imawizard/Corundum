@@ -457,7 +457,6 @@ impl<T: PSafe, A: MemPool> Vec<T, A> {
     #[inline]
     pub fn shrink_to(&mut self, new_cap: usize, j: &Journal<A>) {
         let cap = self.capacity();
-        eprintln!("shrink_to");
 
         // Prevent shrinking to smaller than data
         let new_cap = new_cap.max(self.len);

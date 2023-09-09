@@ -1634,13 +1634,13 @@ macro_rules! pool {
 
                         if info_level > 0 {
                             for i in 0..inner.zone.count() {
-                                eprintln!("{:=^60}", format!(" Restore Allocator (Zone {}) ", i));
-                                eprintln!("{}", inner.zone[i].recovery_info(info_level));
+                                println!("{:=^60}", format!(" Restore Allocator (Zone {}) ", i));
+                                println!("{}", inner.zone[i].recovery_info(info_level));
                             }
 
                             let mut curr = inner.journals;
                             while let Ok(j) = Self::deref_mut::<Journal>(curr) {
-                                eprintln!("{:-^60}\n{}", format!(" Journal @({}) ", curr), j.recovery_info(info_level));
+                                println!("{:-^60}\n{}", format!(" Journal @({}) ", curr), j.recovery_info(info_level));
                                 curr = j.next_off();
                             }
                         }
