@@ -249,7 +249,8 @@ pub mod lib {
         }
 
         pub mod fs {
-            use lib::io::*;
+            use lib::ffi::{c_void, CString};
+            use lib::io::{Error, ErrorKind, Result, Write};
 
             #[derive(Default)]
             pub struct OpenOptions {
@@ -282,55 +283,119 @@ pub mod lib {
                     self
                 }
 
-                pub fn open(&self, _path: &str) -> Result<File> {
-                    Err(Error::from(ErrorKind::Other))
+                pub fn open(&self, path: &str) -> Result<File> {
+                    let filename = CString::new(path).map_err(|_| Error::from(ErrorKind::Other))?;
+                    let mode = CString::new(if self.create && self.truncate {
+                        "bw+"
+                    } else if !self.create && !self.truncate {
+                        "br+"
+                    } else {
+                        "ba+"
+                        // rewind(file)
+                    })
+                    .unwrap();
+
+                    Ok(File {
+                        inner: unsafe { ffi::fopen(filename.as_ptr(), mode.as_ptr()) },
+                        filename: filename,
+                    })
                 }
             }
 
-            pub struct File;
+            pub struct File {
+                inner: *const c_void,
+                pub(crate) filename: CString,
+            }
 
             impl File {
-                pub fn open(_path: &str) -> Option<()> {
-                    None
+                pub fn options() -> OpenOptions {
+                    OpenOptions::new()
                 }
 
                 pub fn metadata(&self) -> Result<Metadata> {
-                    Err(Error::from(ErrorKind::Other))
+                    Ok(Metadata {
+                        filename: self.filename.clone(),
+                    })
                 }
 
-                pub fn set_len(&self, _size: u64) -> Result<()> {
-                    Err(Error::from(ErrorKind::Other))
+                pub fn set_len(&self, size: u64) -> Result<()> {
+                    if unsafe { ffi::truncate(self.filename.as_ptr(), size) } == size {
+                        Ok(())
+                    } else {
+                        Err(Error::from(ErrorKind::Other))
+                    }
+                }
+            }
+
+            impl Drop for File {
+                fn drop(&mut self) {
+                    unsafe { ffi::fclose(self.inner) }
                 }
             }
 
             impl Write for File {
-                fn write(&mut self, _data: &[u8]) -> Result<usize> {
-                    Err(Error::from(ErrorKind::Other))
+                fn write(&mut self, data: &[u8]) -> Result<usize> {
+                    Ok(unsafe {
+                        ffi::fwrite(data.as_ptr() as *const c_void, 1, data.len(), self.inner)
+                    })
                 }
 
-                fn write_all(&mut self, _data: &[u8]) -> Result<()> {
-                    Err(Error::from(ErrorKind::Other))
+                fn write_all(&mut self, data: &[u8]) -> Result<()> {
+                    if self.write(data)? == data.len() {
+                        Ok(())
+                    } else {
+                        Err(Error::from(ErrorKind::Other))
+                    }
                 }
             }
 
-            pub struct Metadata;
+            pub struct Metadata {
+                filename: CString,
+            }
 
             impl Metadata {
                 pub fn is_file(&self) -> bool {
-                    false
+                    true
                 }
 
                 pub fn len(&self) -> u64 {
-                    0
+                    unsafe { ffi::size(self.filename.as_ptr()) }
                 }
             }
 
-            pub fn metadata(_path: &str) -> Result<Metadata> {
-                Err(Error::from(ErrorKind::Other))
+            pub fn metadata(path: &str) -> Result<Metadata> {
+                OpenOptions::new().open(path).and_then(|f| f.metadata())
             }
 
-            pub fn remove_file(_path: &str) -> Result<()> {
-                Err(Error::from(ErrorKind::Other))
+            pub fn remove_file(path: &str) -> Result<()> {
+                let filename = match CString::new(path) {
+                    Ok(res) => res,
+                    Err(_) => return Err(Error::from(ErrorKind::Other)),
+                };
+
+                if unsafe { ffi::remove(filename.as_ptr()) } == 0 {
+                    Ok(())
+                } else {
+                    Err(Error::from(ErrorKind::Other))
+                }
+            }
+
+            pub mod ffi {
+                use lib::ffi::{c_char, c_int, c_ulonglong, c_void};
+
+                extern "C" {
+                    pub fn fopen(filename: *const c_char, mode: *const c_char) -> *const c_void;
+                    pub fn fwrite(
+                        buf: *const c_void,
+                        size: usize,
+                        count: usize,
+                        file: *const c_void,
+                    ) -> usize;
+                    pub fn fclose(file: *const c_void);
+                    pub fn remove(filename: *const c_char) -> c_int;
+                    pub fn truncate(filename: *const c_char, length: c_ulonglong) -> c_ulonglong;
+                    pub fn size(filename: *const c_char) -> c_ulonglong;
+                }
             }
         }
 
@@ -379,6 +444,9 @@ pub mod lib {
 
         pub mod path {
             use core::ops;
+            use core::ptr;
+            use lib::ffi::{c_char, CString};
+            use lib::fs::ffi;
 
             #[repr(transparent)]
             pub struct Path {
@@ -391,7 +459,19 @@ pub mod lib {
                 }
 
                 pub fn exists(&self) -> bool {
-                    false
+                    let filename = match CString::new(&self.inner) {
+                        Ok(res) => res,
+                        Err(_) => return false,
+                    };
+
+                    let file =
+                        unsafe { ffi::fopen(filename.as_ptr(), "r\0".as_ptr() as *const c_char) };
+                    if file != ptr::null() {
+                        unsafe { ffi::fclose(file) };
+                        true
+                    } else {
+                        false
+                    }
                 }
             }
 
@@ -568,6 +648,7 @@ pub mod lib {
 
         pub mod ffi {
             pub use core::ffi::*;
+            pub use stdalloc::ffi::CString;
 
             extern "C" {
                 pub fn putchar(ch: c_int) -> c_int;
