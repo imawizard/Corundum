@@ -668,9 +668,11 @@ pub mod memmap {
 
 #[cfg(not(feature = "std"))]
 pub mod memmap {
+    use lib::ffi::c_void;
     use lib::fs::File;
     use lib::io::*;
     use lib::ops;
+    use lib::ptr;
 
     #[derive(Debug)]
     pub struct MmapOptions {}
@@ -680,17 +682,36 @@ pub mod memmap {
             MmapOptions {}
         }
 
-        pub unsafe fn map_mut(&self, _file: &File) -> Result<MmapMut> {
-            Err(Error::from(ErrorKind::Other))
+        pub unsafe fn map_mut(&self, file: &File) -> Result<MmapMut> {
+            let addr = unsafe { ffi::map(file.filename.as_ptr()) };
+            let size = file.metadata().unwrap().len();
+
+            if addr != ptr::null_mut() {
+                Ok(MmapMut {
+                    address: addr as u64,
+                    size,
+                })
+            } else {
+                Err(Error::from(ErrorKind::Other))
+            }
         }
     }
 
     #[derive(Debug)]
-    pub struct MmapMut;
+    pub struct MmapMut {
+        address: u64,
+        size: u64,
+    }
 
     impl MmapMut {
         pub fn flush(&self) -> Result<()> {
             Ok(())
+        }
+    }
+
+    impl ops::Drop for MmapMut {
+        fn drop(&mut self) {
+            unsafe { ffi::unmap(self.address as *mut c_void) };
         }
     }
 
@@ -699,14 +720,63 @@ pub mod memmap {
 
         #[inline]
         fn deref(&self) -> &[u8] {
-            unsafe { lib::slice::from_raw_parts(lib::ptr::null(), 0) }
+            unsafe { lib::slice::from_raw_parts(self.address as *const u8, self.size as usize) }
         }
     }
 
     impl ops::DerefMut for MmapMut {
         #[inline]
         fn deref_mut(&mut self) -> &mut [u8] {
-            unsafe { lib::slice::from_raw_parts_mut(lib::ptr::null_mut(), 0) }
+            unsafe { lib::slice::from_raw_parts_mut(self.address as *mut u8, self.size as usize) }
+        }
+    }
+
+    mod ffi {
+        use lib::ffi::{c_char, c_int, c_void};
+
+        extern "C" {
+            pub fn map(filename: *const c_char) -> *mut c_void;
+            pub fn unmap(addr: *mut c_void) -> c_int;
+        }
+    }
+}
+
+#[cfg(not(feature = "std"))]
+mod pmem {
+    pub fn create(name: &str, size: u64) -> u64 {
+        unsafe { ffi::pmem_create(name.as_ptr(), name.len(), size) }
+    }
+
+    pub fn destroy(name: &str) -> bool {
+        unsafe { ffi::pmem_destroy(name.as_ptr(), name.len()) }
+    }
+
+    pub fn get(name: &str) -> Option<ffi::Pmem> {
+        let res = unsafe { ffi::pmem_get(name.as_ptr(), name.len()) };
+
+        if res.address != 0 {
+            Some(res)
+        } else {
+            None
+        }
+    }
+
+    pub fn set_len(name: &str, size: u64) -> u64 {
+        unsafe { ffi::pmem_set_len(name.as_ptr(), name.len(), size) }
+    }
+
+    mod ffi {
+        #[repr(C, packed)]
+        pub struct Pmem {
+            pub address: u64,
+            pub size: u64,
+        }
+
+        extern "C" {
+            pub fn pmem_create(name: *const u8, name_len: usize, size: u64) -> u64;
+            pub fn pmem_destroy(name: *const u8, name_len: usize) -> bool;
+            pub fn pmem_get(name: *const u8, name_len: usize) -> Pmem;
+            pub fn pmem_set_len(name: *const u8, name_len: usize, size: u64) -> u64;
         }
     }
 }
