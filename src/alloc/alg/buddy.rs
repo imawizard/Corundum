@@ -1653,7 +1653,7 @@ macro_rules! pool {
                             debug_assert!(Self::verify());
                         });
 
-                        #[allow(unused_mut,unused_variables)]
+                        #[allow(unused_mut, unused_variables, clippy::unused_unit)]
                         let mut check_double_free = __cfg_delete_history!({
                             lib::collections::HashSet::<u64>::new()
                         }, { () });

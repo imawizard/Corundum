@@ -652,7 +652,11 @@ impl<A: MemPool> Journal<A> {
     pub(crate) fn complete(&mut self) {
         if self.sec_id != 0 && !self.chaperon.is_empty() {
             unsafe {
-                let s = String::from_utf8(self.chaperon.to_vec()).unwrap();
+                let s = lib::ffi::CStr::from_bytes_until_nul(self.chaperon.as_slice())
+                    .map(|s| s.to_str().unwrap())
+                    .or_else(|_| lib::str::from_utf8(self.chaperon.as_slice()))
+                    .unwrap();
+
                 if let Ok(c) = Chaperon::load(&s) {
                     // If file not exists, it is on the normal path on the first
                     // execution. The existence of the file is already checked
