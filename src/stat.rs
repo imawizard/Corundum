@@ -332,24 +332,24 @@ impl Stat {
                 use prelude::*;
 
                 let mut f = File::create(format!("{}/{}_hist.csv", _path, k))?;
-                f.write(b"lat,freq\n")?;
+                writeln!(f, "lat,freq")?;
 
                 let mut pairs = vec![];
                 for (tm, fr) in &v.points {
                     pairs.push((tm, fr));
                 }
-                pairs.sort_by(|x, y| x.cmp(&y));
+                pairs.sort();
 
                 for (tm, fr) in &pairs {
-                    f.write(format!("{},{}\n", tm, fr).to_string().as_bytes())?;
+                    writeln!(f, "{},{}", tm, fr)?;
                 }
 
                 if points_enabled() {
                     let mut f = File::create(format!("{}/{}_points.csv", _path, k))?;
-                    f.write(format!("{}\n", k).to_string().as_bytes())?;
+                    writeln!(f, "{}", k)?;
                     for (tm, fr) in &pairs {
                         for _ in 0..**fr {
-                            f.write(format!("{}\n", tm).to_string().as_bytes())?;
+                            writeln!(f, "{}", tm)?;
                         }
                     }
                 }
