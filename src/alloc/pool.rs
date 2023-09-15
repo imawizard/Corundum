@@ -1,7 +1,6 @@
 use crate::cell::{RootCell, RootObj};
 use crate::result::Result;
 use crate::stm::*;
-use crate::utils::*;
 use crate::*;
 use lib::collections::HashMap;
 use lib::fs::OpenOptions;
@@ -1041,7 +1040,7 @@ where
             if *journal.1 == 0 {
                 log!(Self, White, "COMMIT", "JRNL: {:?}", journal.0);
 
-                let journal = as_mut(journal.0);
+                let journal = &mut *journal.0;
                 journal.commit(
                     #[cfg(feature = "check_double_free")]
                     &mut *Self::dealloc_history(),
@@ -1075,7 +1074,7 @@ where
             if *journal.1 == 0 {
                 log!(Self, White, "COMMIT_NC", "JRNL: {:?}", journal.0);
 
-                as_mut(journal.0).commit(
+                (*journal.0).commit(
                     #[cfg(feature = "check_double_free")]
                     &mut *Self::dealloc_history(),
                 );
@@ -1103,7 +1102,7 @@ where
             if *journal.1 == -1 {
                 log!(Self, White, "CLEAR", "JRNL: {:?}", journal.0);
 
-                as_mut(journal.0).clear(
+                (*journal.0).clear(
                     #[cfg(feature = "check_double_free")]
                     &mut *Self::dealloc_history(),
                 );
@@ -1133,7 +1132,7 @@ where
             if *journal.1 == 0 {
                 log!(Self, White, "ROLLBACK", "JRNL: {:?}", journal.0);
 
-                let journal = as_mut(journal.0);
+                let journal = &mut *journal.0;
                 journal.rollback(
                     #[cfg(feature = "check_double_free")]
                     &mut *Self::dealloc_history(),
@@ -1171,7 +1170,7 @@ where
             if *journal.1 == 0 {
                 log!(Self, White, "ROLLBACK_NC", "JRNL: {:?}", journal.0);
 
-                as_mut(journal.0).rollback(
+                (*journal.0).rollback(
                     #[cfg(feature = "check_double_free")]
                     &mut *Self::dealloc_history(),
                 );
@@ -1255,7 +1254,7 @@ where
 
                         let j = Journal::<Self>::current(true).unwrap();
                         *j.1 += 1;
-                        let journal = as_mut(j.0);
+                        let journal = &mut *j.0;
                         journal.start_session(&mut chaperon);
                         journal.unset(JOURNAL_COMMITTED);
                         journal
@@ -1269,7 +1268,7 @@ where
                     unsafe {
                         let j = Journal::<Self>::current(true).unwrap();
                         *j.1 += 1;
-                        utils::as_mut(j.0).unset(JOURNAL_COMMITTED);
+                        (*j.0).unset(JOURNAL_COMMITTED);
                         &*j.0
                     }
                 })

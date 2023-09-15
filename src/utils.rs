@@ -54,12 +54,6 @@ pub fn can_crash() -> bool {
     }
 }
 
-#[inline]
-#[doc(hidden)]
-pub unsafe fn as_mut<'a, T: ?Sized>(v: *const T) -> &'a mut T {
-    &mut *(v as *mut T)
-}
-
 pub fn as_slice<T: ?Sized>(x: &T) -> &[u8] {
     let ptr: *const T = x;
     let ptr: *const u8 = ptr as *const u8;

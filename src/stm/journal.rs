@@ -4,6 +4,8 @@ use crate::ll::*;
 use crate::ptr::Ptr;
 use crate::stm::*;
 use crate::*;
+#[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+use lib::cell::UnsafeCell;
 use lib::collections::HashMap;
 use lib::fmt::{self, Debug, Formatter};
 
@@ -63,7 +65,7 @@ pub struct Journal<A: MemPool> {
     current: Ptr<Page<A>, A>,
 
     #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
-    spd: Scratchpad<A>,
+    spd: UnsafeCell<Scratchpad<A>>,
 
     gen: u32,
     flags: u64,
@@ -220,7 +222,7 @@ impl<A: MemPool> Journal<A> {
             current: Ptr::dangling(),
 
             #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
-            spd: Scratchpad::new(),
+            spd: UnsafeCell::new(Scratchpad::new()),
 
             gen,
             flags: 0,
@@ -349,7 +351,7 @@ impl<A: MemPool> Journal<A> {
     pub(crate) fn draft<T: ?Sized>(&self, val: &T) -> Option<*mut T> {
         unsafe {
             if let Ok(off) = A::off(val) {
-                Some(utils::as_mut(self).spd.write(val, off))
+                Some((*self.spd.get()).write(val, off))
             } else {
                 None
             }
@@ -448,7 +450,7 @@ impl<A: MemPool> Journal<A> {
     ) {
         #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
         {
-            self.spd.commit();
+            self.spd.get_mut().commit();
         }
         let mut curr = self.pages;
         while let Some(page) = curr.as_option() {
@@ -479,7 +481,7 @@ impl<A: MemPool> Journal<A> {
     ) {
         #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
         {
-            self.spd.rollback();
+            self.spd.get_mut().rollback();
         }
         let mut curr = self.pages;
         while let Some(page) = curr.as_option() {
@@ -520,9 +522,9 @@ impl<A: MemPool> Journal<A> {
             #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
             {
                 if rollback {
-                    self.spd.rollback();
+                    self.spd.get_mut().rollback();
                 } else {
-                    self.spd.recover();
+                    self.spd.get_mut().recover();
                 }
             }
             while let Some(page) = curr.as_option() {
@@ -544,7 +546,7 @@ impl<A: MemPool> Journal<A> {
     ) {
         #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
         {
-            self.spd.clear();
+            self.spd.get_mut().clear();
         }
         #[cfg(feature = "pin_journals")]
         {
@@ -701,7 +703,7 @@ impl<A: MemPool> Journal<A> {
     /// object for the running thread, it may create a new journal and returns
     /// its mutable reference. Each thread may have only one journal.
     #[track_caller]
-    pub unsafe fn current(create: bool) -> Option<(*const Journal<A>, *mut i32)>
+    pub unsafe fn current(create: bool) -> Option<(*mut Journal<A>, *mut i32)>
     where
         Self: Sized,
     {
@@ -718,7 +720,7 @@ impl<A: MemPool> Journal<A> {
             }
             if let Some((j, c)) = journals.get_mut(&tid) {
                 Some((
-                    Ptr::<Self, A>::from_off_unchecked(*j).as_ptr(),
+                    Ptr::<Self, A>::from_off_unchecked(*j).as_mut_ptr(),
                     c as *mut i32,
                 ))
             } else {
@@ -766,10 +768,11 @@ impl<A: MemPool> Journal<A> {
     ///
     /// This function is only for measuring some properties such as log latency.
     pub unsafe fn ignore(&self) {
-        let mut page = utils::as_mut(self).pages.as_option();
-        while let Some(p) = page {
-            p.ignore();
-            page = p.next.as_option();
+        let mut ptr = self.pages;
+        while !ptr.is_dangling() {
+            let page = ptr.get_mut();
+            page.ignore();
+            ptr = page.next;
         }
     }
 }

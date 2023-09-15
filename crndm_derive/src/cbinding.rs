@@ -2027,7 +2027,7 @@ pub fn carbide(input: TokenStream) -> TokenStream {
                     unsafe {
                         let j = Journal::current(true).expect(&format!("{}", line!()));
                         *j.1 += 1;
-                        let journal = corundum::utils::as_mut(j.0);
+                        let journal = &*j.0;
                         journal.unset(corundum::stm::JOURNAL_COMMITTED);
                         journal as *const _ as *const u8 as *const c_void
                     }
@@ -2062,7 +2062,7 @@ pub fn carbide(input: TokenStream) -> TokenStream {
                 pub extern "C" fn #fn_journal(create: bool) -> *const c_void {
                     unsafe {
                         if let Some(j) = Journal::current(create) {
-                            let journal = corundum::utils::as_mut(j.0);
+                            let journal = &*j.0;
                             journal as *const _ as *const u8 as *const c_void
                         } else {
                             std::ptr::null()

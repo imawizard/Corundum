@@ -3,6 +3,7 @@ use crate::cell::VCell;
 use crate::ptr::Ptr;
 use crate::stm::{Journal, Log, Logger, Notifier};
 use crate::*;
+use lib::cell::Cell;
 use lib::cell::UnsafeCell;
 use lib::marker::PhantomData;
 use lib::ops::{Deref, DerefMut};
@@ -91,7 +92,7 @@ pub struct PMutex<T, A: MemPool> {
 }
 
 struct MutexInner {
-    borrowed: bool,
+    borrowed: Cell<bool>,
 
     #[cfg(feature = "pthreads")]
     lock: (bool, libc::pthread_mutex_t, libc::pthread_mutexattr_t),
@@ -110,7 +111,7 @@ impl Default for MutexInner {
             init_lock(&mut lock, attr.as_mut_ptr());
         }
         MutexInner {
-            borrowed: false,
+            borrowed: Cell::new(false),
             lock: (false, lock, unsafe { attr.assume_init() }),
         }
     }
@@ -118,7 +119,7 @@ impl Default for MutexInner {
     #[cfg(not(feature = "pthreads"))]
     fn default() -> Self {
         MutexInner {
-            borrowed: false,
+            borrowed: Cell::new(false),
             lock: (false, 0),
         }
     }
@@ -126,20 +127,16 @@ impl Default for MutexInner {
 
 impl MutexInner {
     fn acquire(&self) -> bool {
-        if self.borrowed {
+        if self.borrowed.get() {
             false
         } else {
-            unsafe {
-                utils::as_mut(self).borrowed = true;
-            }
+            self.borrowed.set(true);
             true
         }
     }
 
     fn release(&self) {
-        unsafe {
-            utils::as_mut(self).borrowed = false;
-        }
+        self.borrowed.set(false);
     }
 }
 
