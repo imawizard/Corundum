@@ -243,10 +243,7 @@ impl<A: MemPool, T: PSafe + ?Sized> Copy for Ptr<T, A> {}
 
 impl<A: MemPool, T: PSafe + ?Sized> Clone for Ptr<T, A> {
     fn clone(&self) -> Self {
-        Self {
-            off: self.off,
-            marker: PhantomData,
-        }
+        *self
     }
 }
 

@@ -24,7 +24,7 @@ pub struct NonNull<T: PSafe + ?Sized> {
 impl<T: PSafe + ?Sized> Copy for NonNull<T> {}
 impl<T: PSafe + ?Sized> Clone for NonNull<T> {
     fn clone(&self) -> Self {
-        Self { ptr: self.ptr }
+        *self
     }
 }
 
@@ -149,15 +149,7 @@ pub struct LogNonNull<T: PSafe + ?Sized, A: MemPool> {
 impl<T: PSafe + ?Sized, A: MemPool> Copy for LogNonNull<T, A> {}
 impl<T: PSafe + ?Sized, A: MemPool> Clone for LogNonNull<T, A> {
     fn clone(&self) -> Self {
-        Self {
-            ptr: self.ptr,
-            journal: self.journal,
-
-            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
-            logged: self.logged,
-
-            phantom: PhantomData,
-        }
+        *self
     }
 }
 

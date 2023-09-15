@@ -89,12 +89,7 @@ impl<A: MemPool> Copy for Notifier<A> {}
 
 impl<A: MemPool> Clone for Notifier<A> {
     fn clone(&self) -> Self {
-        use Notifier::*;
-        match self {
-            Atomic(c) => Atomic(c.clone()),
-            NonAtomic(c) => NonAtomic(c.clone()),
-            None => None,
-        }
+        *self
     }
 }
 
@@ -157,7 +152,7 @@ impl<A: MemPool> Copy for Log<A> {}
 
 impl<A: MemPool> Clone for Log<A> {
     fn clone(&self) -> Self {
-        Self(self.0, self.1)
+        *self
     }
 }
 

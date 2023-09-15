@@ -295,7 +295,7 @@ pub struct c_void {}
 impl Copy for c_void {}
 impl Clone for c_void {
     fn clone(&self) -> Self {
-        Self {}
+        *self
     }
 }
 
