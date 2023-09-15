@@ -46,7 +46,7 @@ impl<A: MemPool> Page<A> {
                 pg.cap = cap - mem::size_of::<Page<A>>();
                 pg.len = 0;
                 pg.next = self.next;
-                A::log64(A::off_unchecked(self.next.off_mut()), off, z);
+                A::log64(A::off_unchecked(self.next.off_ref()), off, z);
                 A::perform(z);
                 pg.write(val, org_off)
             }
@@ -97,7 +97,7 @@ impl<A: MemPool> Page<A> {
     }
 
     unsafe fn release(&mut self, org_off: u64) {
-        let next_off = A::off_unchecked(self.next.off_mut());
+        let next_off = A::off_unchecked(self.next.off_ref());
         if let Some(next) = self.next.as_option() {
             next.release(next_off);
         }
@@ -157,12 +157,12 @@ impl<A: MemPool> Scratchpad<A> {
     pub(crate) unsafe fn clear(&mut self) {
         #[cfg(not(feature = "pin_journals"))]
         {
-            let org_off = A::off_unchecked(self.pages.off_mut());
+            let org_off = A::off_unchecked(self.pages.off_ref());
             self.pages.release(org_off);
         }
         #[cfg(feature = "pin_journals")]
         {
-            let next_off = A::off_unchecked(self.pages.next.off_mut());
+            let next_off = A::off_unchecked(self.pages.next.off_ref());
             if let Some(next) = self.pages.next.as_option() {
                 next.release(next_off);
             }
@@ -176,7 +176,7 @@ impl<A: MemPool> Drop for Scratchpad<A> {
         unsafe {
             self.clear();
             if !self.pages.is_dangling() {
-                let next_off = A::off_unchecked(self.pages.off_mut());
+                let next_off = A::off_unchecked(self.pages.off_ref());
                 self.pages.release(next_off);
             }
         }

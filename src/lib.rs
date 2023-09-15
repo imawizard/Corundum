@@ -134,7 +134,6 @@
 #![allow(dead_code)]
 #![allow(incomplete_features)]
 #![allow(type_alias_bounds)]
-#![allow(cast_ref_to_mut)]
 #![feature(prelude_import)]
 
 #[cfg(all(feature = "std", feature = "no_std"))]

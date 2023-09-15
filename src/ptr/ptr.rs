@@ -145,19 +145,6 @@ impl<A: MemPool, T: ?Sized> Ptr<T, A> {
         &self.off
     }
 
-    #[inline]
-    /// Returns a reference to the file offset
-    pub(crate) fn off_mut(&self) -> &mut u64 {
-        unsafe { &mut *(&self.off as *const u64 as *mut u64) }
-    }
-
-    #[inline]
-    pub(crate) fn replace(&self, new: u64) -> u64 {
-        let old = self.off;
-        *self.off_mut() = new;
-        old
-    }
-
     /// Creates a new `Ptr`.
     ///
     /// # Safety

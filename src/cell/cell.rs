@@ -274,11 +274,6 @@ impl<T: PSafe, A: MemPool> PCell<T, A> {
             self.value.into_inner().1
         }
     }
-
-    #[inline]
-    fn self_mut(&self) -> &mut Self {
-        unsafe { &mut *(self as *const Self as *mut Self) }
-    }
 }
 
 impl<T: PSafe, A: MemPool> PCell<T, A> {

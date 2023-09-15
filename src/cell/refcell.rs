@@ -4,6 +4,7 @@ use crate::ptr::{LogNonNull, NonNull};
 use crate::stm::Journal;
 use crate::*;
 use lib::cell::UnsafeCell;
+use lib::convert;
 use lib::fmt::{self, Debug, Display};
 use lib::marker::PhantomData;
 use lib::ops::{Deref, DerefMut};
@@ -208,15 +209,6 @@ impl<T: PSafe + Debug + ?Sized, A: MemPool> Debug for PRefCell<T, A> {
 }
 
 impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
-    #[inline(always)]
-    #[allow(clippy::mut_from_ref)]
-    fn self_mut(&self) -> &mut Self {
-        unsafe {
-            let ptr: *const Self = self;
-            &mut *(ptr as *mut Self)
-        }
-    }
-
     #[inline]
     #[allow(clippy::mut_from_ref)]
     /// Takes a log and returns a mutable reference to the underlying data.
@@ -240,7 +232,11 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
     /// }).unwrap();
     /// ```
     pub fn get_mut(&mut self, journal: &Journal<A>) -> &mut T {
-        let inner = unsafe { &mut *self.value.get() };
+        unsafe { self.get(journal) }
+    }
+
+    unsafe fn get(&self, journal: &Journal<A>) -> &mut T {
+        let inner = &mut *self.value.get();
         self.create_log(journal);
 
         #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
@@ -295,26 +291,6 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
         #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
         {
             &mut (*self.value.get()).1
-        }
-    }
-
-    #[inline]
-    /// Returns an immutable reference of the inner value
-    pub fn as_ref(&self) -> &T {
-        unsafe {
-            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
-            {
-                if let Some(tmp) = *self.temp {
-                    &*tmp
-                } else {
-                    &*self.value.get()
-                }
-            }
-
-            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
-            {
-                &(*self.value.get()).1
-            }
         }
     }
 
@@ -400,6 +376,32 @@ impl<T: PSafe + ?Sized, A: MemPool> PRefCell<T, A> {
                         .1
                         .create_log(journal, Notifier::NonAtomic(Ptr::from_ref(&inner.0)));
                 }
+            }
+        }
+    }
+}
+
+impl<T, A> convert::AsRef<T> for PRefCell<T, A>
+where
+    T: PSafe + ?Sized,
+    A: MemPool,
+{
+    #[inline]
+    /// Returns an immutable reference of the inner value
+    fn as_ref(&self) -> &T {
+        unsafe {
+            #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+            {
+                if let Some(tmp) = *self.temp {
+                    &*tmp
+                } else {
+                    &*self.value.get()
+                }
+            }
+
+            #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+            {
+                &(*self.value.get()).1
             }
         }
     }
@@ -504,7 +506,7 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
             *borrow = 1;
         }
         RefMut {
-            value: unsafe { &mut *(self as *const Self as *mut Self) },
+            value: self,
             journal,
             phantom: PhantomData,
         }
@@ -540,7 +542,7 @@ impl<T: PSafe, A: MemPool> PRefCell<T, A> {
             }
             #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
             {
-                NonNull::new_unchecked(&mut inner.1)
+                NonNull::new_unchecked(&inner.1)
             }
         }
     }
@@ -573,7 +575,7 @@ impl<T: PSafe + Eq + ?Sized, A: MemPool> Eq for PRefCell<T, A> {}
 impl<T: PSafe + PartialOrd + ?Sized, A: MemPool> PartialOrd for PRefCell<T, A> {
     #[inline]
     fn partial_cmp(&self, other: &PRefCell<T, A>) -> Option<lib::cmp::Ordering> {
-        self.as_ref().partial_cmp(&*other.as_ref())
+        self.as_ref().partial_cmp(other.as_ref())
     }
 
     #[inline]
@@ -722,7 +724,7 @@ impl<T: PSafe + ?Sized, A: MemPool> Drop for Ref<'_, T, A> {
 }
 
 pub struct RefMut<'b, T: 'b + PSafe + ?Sized, A: MemPool> {
-    value: *mut PRefCell<T, A>,
+    value: &'b PRefCell<T, A>,
     journal: *const Journal<A>,
     phantom: PhantomData<&'b T>,
 }
@@ -761,7 +763,7 @@ impl<T: PSafe + ?Sized, A: MemPool> RefMut<'_, T, A> {
 impl<T: PSafe + ?Sized, A: MemPool> RefMut<'_, T, A> {
     /// Converts `RefMut` into a mutable reference within the same lifetime
     pub fn into_mut<'a>(r: RefMut<'a, T, A>) -> &'a mut T {
-        unsafe { (*r.value).as_mut() }
+        unsafe { r.value.as_mut() }
     }
 }
 
@@ -770,7 +772,14 @@ impl<T: PSafe + ?Sized, A: MemPool> Deref for RefMut<'_, T, A> {
 
     #[inline]
     fn deref(&self) -> &T {
-        unsafe { (*self.value).as_ref() }
+        #[cfg(not(any(feature = "use_pspd", feature = "use_vspd")))]
+        unsafe {
+            &(*self.value.value.get()).1
+        }
+        #[cfg(any(feature = "use_pspd", feature = "use_vspd"))]
+        unsafe {
+            &(*self.value.value.get())
+        }
     }
 }
 
@@ -778,27 +787,27 @@ impl<T: PSafe + ?Sized, A: MemPool> DerefMut for RefMut<'_, T, A> {
     #[inline]
     #[track_caller]
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { (*self.value).get_mut(&*self.journal) }
+        unsafe { self.value.get(&*self.journal) }
     }
 }
 
 impl<T: fmt::Display + PSafe + ?Sized, A: MemPool> fmt::Display for RefMut<'_, T, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        unsafe { (*self.value).fmt(f) }
+        self.value.fmt(f)
     }
 }
 
 impl<T: fmt::Debug + PSafe + ?Sized, A: MemPool> fmt::Debug for RefMut<'_, T, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        unsafe { (*self.value).fmt(f) }
+        self.value.fmt(f)
     }
 }
 
 impl<T: PSafe + ?Sized, A: MemPool> Drop for RefMut<'_, T, A> {
     fn drop(&mut self) {
         #[cfg(not(feature = "no_dyn_borrow_checking"))]
-        unsafe {
-            let borrow = (*self.value).borrow.as_mut();
+        {
+            let borrow = self.value.borrow.as_mut();
             *borrow -= 1;
         }
     }

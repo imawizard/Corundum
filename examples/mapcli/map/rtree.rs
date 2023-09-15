@@ -1,18 +1,12 @@
 use crate::map::Map;
 use corundum::default::*;
 
-use std::collections::BTreeMap;
+use std::{cell::RefCell, collections::BTreeMap};
 
 type P = Allocator;
 
 pub struct RTree<K, V> {
-    btree: BTreeMap<K, V>,
-}
-
-impl<K, V> RTree<K, V> {
-    fn self_mut(&self) -> &mut Self {
-        unsafe { &mut *(self as *const Self as *mut Self) }
-    }
+    btree: RefCell<BTreeMap<K, V>>,
 }
 
 impl<K, V: Copy> Map<K, V> for RTree<K, V>
@@ -20,32 +14,32 @@ where
     K: std::cmp::Ord,
 {
     fn clear(&self) {
-        self.self_mut().btree.clear();
+        self.btree.borrow_mut().clear();
     }
     fn insert(&self, key: K, val: V) {
-        self.self_mut().btree.insert(key, val);
+        self.btree.borrow_mut().insert(key, val);
     }
     fn remove(&self, key: K) {
-        self.self_mut().btree.remove(&key);
+        self.btree.borrow_mut().remove(&key);
     }
     fn is_empty(&self) -> bool {
-        self.btree.is_empty()
+        self.btree.borrow().is_empty()
     }
     fn foreach<F: Copy + Fn(&K, &V) -> bool>(&self, f: F) -> bool {
-        for (k, v) in &self.btree {
+        for (k, v) in self.btree.borrow().iter() {
             f(k, v);
         }
         true
     }
     fn lookup(&self, key: K) -> bool {
-        self.btree.get(&key).is_some()
+        self.btree.borrow().get(&key).is_some()
     }
 }
 
 impl<K: std::cmp::Ord, V> Default for RTree<K, V> {
     fn default() -> Self {
         Self {
-            btree: BTreeMap::new(),
+            btree: RefCell::new(BTreeMap::new()),
         }
     }
 }

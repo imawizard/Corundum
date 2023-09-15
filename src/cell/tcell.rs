@@ -1,7 +1,8 @@
 use crate::alloc::MemPool;
 use crate::stm::Journal;
 use crate::RootObj;
-use crate::{utils, PSafe, VSafe};
+use crate::{PSafe, VSafe};
+use lib::cell::UnsafeCell;
 use lib::cmp::*;
 use lib::fmt::{self, Debug};
 use lib::marker::PhantomData;
@@ -48,7 +49,7 @@ pub struct TCell<T: Default + VSafe + ?Sized, A: MemPool> {
     gen: u32,
     tx_gen: u32,
     phantom: PhantomData<(A, T)>,
-    value: T,
+    value: UnsafeCell<T>,
 }
 
 /// Not Safe to transfer between thread boundaries
@@ -72,14 +73,14 @@ impl<T: Default + VSafe, A: MemPool> TCell<T, A> {
         Self {
             gen: A::gen(),
             tx_gen: j.gen(),
-            value: v,
+            value: UnsafeCell::new(v),
             phantom: PhantomData,
         }
     }
 
     #[inline]
     pub(crate) fn as_mut(&self) -> &mut T {
-        unsafe { &mut *(self.deref() as *const T as *mut T) }
+        unsafe { &mut *self.value.get() }
     }
 
     #[inline]
@@ -88,7 +89,7 @@ impl<T: Default + VSafe, A: MemPool> TCell<T, A> {
         Self {
             gen: 0,
             tx_gen: 0,
-            value: v,
+            value: UnsafeCell::new(v),
             phantom: PhantomData,
         }
     }
@@ -106,16 +107,16 @@ impl<T: Default + VSafe, A: MemPool> TCell<T, A> {
                 let j = &*j;
                 let tx_gen = j.gen();
                 if self.gen != gen || self.tx_gen != tx_gen {
-                    forget(replace(&mut self.value, T::default()));
+                    forget(replace(&mut self.value, UnsafeCell::new(T::default())));
                     self.gen = gen;
                     self.tx_gen = tx_gen;
                 }
             } else {
-                forget(replace(&mut self.value, T::default()));
+                forget(replace(&mut self.value, UnsafeCell::new(T::default())));
                 self.gen = gen;
             }
         }
-        &mut self.value
+        self.value.get_mut()
     }
 }
 
@@ -124,7 +125,7 @@ impl<T: Default + VSafe, A: MemPool> RootObj<A> for TCell<T, A> {
         Self {
             gen: A::gen(),
             tx_gen: j.gen(),
-            value: T::default(),
+            value: UnsafeCell::new(T::default()),
             phantom: PhantomData,
         }
     }
@@ -135,7 +136,7 @@ impl<T: Default + VSafe, A: MemPool> Deref for TCell<T, A> {
 
     #[inline]
     fn deref(&self) -> &T {
-        unsafe { utils::as_mut(self).force() }
+        unsafe { &*self.value.get() }
     }
 }
 
@@ -149,7 +150,7 @@ impl<T: Default + VSafe, A: MemPool> DerefMut for TCell<T, A> {
 impl<T: Default + VSafe + PartialEq + Copy, A: MemPool> PartialEq for TCell<T, A> {
     #[inline]
     fn eq(&self, other: &TCell<T, A>) -> bool {
-        self.value == other.value
+        unsafe { *self.value.get() == *other.value.get() }
     }
 }
 
@@ -158,67 +159,67 @@ impl<T: Default + VSafe + Eq + Copy, A: MemPool> Eq for TCell<T, A> {}
 impl<T: Default + VSafe + PartialOrd + Copy, A: MemPool> PartialOrd for TCell<T, A> {
     #[inline]
     fn partial_cmp(&self, other: &TCell<T, A>) -> Option<Ordering> {
-        self.value.partial_cmp(&other.value)
+        unsafe { (*self.value.get()).partial_cmp(&*other.value.get()) }
     }
 
     #[inline]
     fn lt(&self, other: &TCell<T, A>) -> bool {
-        self.value < other.value
+        unsafe { *self.value.get() < *other.value.get() }
     }
 
     #[inline]
     fn le(&self, other: &TCell<T, A>) -> bool {
-        self.value <= other.value
+        unsafe { *self.value.get() <= *other.value.get() }
     }
 
     #[inline]
     fn gt(&self, other: &TCell<T, A>) -> bool {
-        self.value > other.value
+        unsafe { *self.value.get() > *other.value.get() }
     }
 
     #[inline]
     fn ge(&self, other: &TCell<T, A>) -> bool {
-        self.value >= other.value
+        unsafe { *self.value.get() >= *other.value.get() }
     }
 }
 
 impl<T: Default + VSafe + Ord + Copy, A: MemPool> Ord for TCell<T, A> {
     #[inline]
     fn cmp(&self, other: &TCell<T, A>) -> Ordering {
-        self.value.cmp(&other.value)
+        self.value.get().cmp(&other.value.get())
     }
 }
 
 impl<T: Default + VSafe + PartialEq + Copy, A: MemPool> PartialEq<T> for TCell<T, A> {
     #[inline]
     fn eq(&self, other: &T) -> bool {
-        self.value == *other
+        unsafe { *self.value.get() == *other }
     }
 }
 
 impl<T: Default + VSafe + PartialOrd + Copy, A: MemPool> PartialOrd<T> for TCell<T, A> {
     #[inline]
     fn partial_cmp(&self, other: &T) -> Option<Ordering> {
-        self.value.partial_cmp(&other)
+        unsafe { (*self.value.get()).partial_cmp(&other) }
     }
 
     #[inline]
     fn lt(&self, other: &T) -> bool {
-        self.value < *other
+        unsafe { *self.value.get() < *other }
     }
 
     #[inline]
     fn le(&self, other: &T) -> bool {
-        self.value <= *other
+        unsafe { *self.value.get() <= *other }
     }
 
     #[inline]
     fn gt(&self, other: &T) -> bool {
-        self.value > *other
+        unsafe { *self.value.get() > *other }
     }
 
     #[inline]
     fn ge(&self, other: &T) -> bool {
-        self.value >= *other
+        unsafe { *self.value.get() >= *other }
     }
 }

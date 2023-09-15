@@ -194,15 +194,6 @@ impl<T: PSafe, A: MemPool> PMutex<T, A> {
             &mut inner.1
         }
     }
-
-    #[inline]
-    #[allow(clippy::mut_from_ref)]
-    fn self_mut(&self) -> &mut Self {
-        unsafe {
-            let ptr: *const Self = self;
-            &mut *(ptr as *mut Self)
-        }
-    }
 }
 
 impl<T, A: MemPool> PMutex<T, A> {
