@@ -1399,22 +1399,18 @@ macro_rules! pool {
                 #[track_caller]
                 fn available() -> usize {
                     static_inner!(BUDDY_INNER, inner, {
-                        let mut sum = 0;
-                        for i in 0..inner.zone.count() {
-                            sum += inner.zone[i].available();
-                        }
-                        sum
+                        (0..inner.zone.count())
+                            .map(|i| inner.zone[i].available())
+                            .sum()
                     })
                 }
 
                 #[track_caller]
                 fn used() -> usize {
                     static_inner!(BUDDY_INNER, inner, {
-                        let mut sum = 0;
-                        for i in 0..inner.zone.count() {
-                            sum += inner.zone[i].used();
-                        }
-                        sum
+                        (0..inner.zone.count())
+                            .map(|i| inner.zone[i].used())
+                            .sum()
                     })
                 }
 
@@ -1790,7 +1786,11 @@ macro_rules! pool {
 
                 fn stat_footprint() -> usize {
                     $crate::__cfg_stat_footprint!({
-                        static_inner!(BUDDY_INNER, inner, { inner.zone.stat_footprint() })
+                        static_inner!(BUDDY_INNER, inner, {
+                            (0..inner.zone.count())
+                                .map(|i| inner.zone[i].stat_footprint())
+                                .sum()
+                        })
                     }, {
                         unimplemented!()
                     })
