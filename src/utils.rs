@@ -315,7 +315,8 @@ pub static VERBOSE: crate::cell::LazyCell<bool> = crate::cell::LazyCell::new(|| 
 #[macro_export]
 macro_rules! log {
     ($p:tt, $c:tt, $tag:expr, $msg:expr, $($args:tt)*) => {
-        #[cfg(feature = "verbose")] {
+        #[cfg(all(feature = "verbose", feature = "colors"))]
+        {
             use term_painter::Color::*;
             use term_painter::ToStyle;
 
@@ -324,15 +325,28 @@ macro_rules! log {
                     $c.paint(format!("{:>10}  {}", $tag, format!($msg, $($args)*))));
             }
         }
+        #[cfg(all(feature = "verbose", not(feature = "colors")))]
+        {
+            if *$crate::utils::VERBOSE {
+                println!(concat!("{:<8} {:>10}  ", $msg), $p::name().to_owned() + ":", $tag, $($args)*);
+            }
+        }
     };
     (@none, $c:tt, $tag:expr, $msg:expr, $($args:tt)*) => {
-        #[cfg(feature = "verbose")] {
+        #[cfg(all(feature = "verbose", feature = "colors"))]
+        {
             use term_painter::Color::*;
             use term_painter::ToStyle;
 
             if *$crate::utils::VERBOSE {
                 println!("{:<8} {}", "",
                     $c.paint(format!("{:>10}  {}", $tag, format!($msg, $($args)*))));
+            }
+        }
+        #[cfg(all(feature = "verbose", not(feature = "colors")))]
+        {
+            if *$crate::utils::VERBOSE {
+                println!(concat!("{:<8} {:>10}  ", $msg), "", $tag, $($args)*);
             }
         }
     };

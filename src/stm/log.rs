@@ -299,7 +299,7 @@ impl<A: MemPool> Log<A> {
 
 use LogEnum::*;
 
-#[cfg(feature = "verbose")]
+#[cfg(all(feature = "verbose", feature = "colors"))]
 fn dump_data<A: MemPool>(tag: &str, off: u64, len: usize) {
     use term_painter::Color::*;
     use term_painter::ToStyle;
@@ -313,6 +313,23 @@ fn dump_data<A: MemPool>(tag: &str, off: u64, len: usize) {
         for i in 0..len {
             let d = unsafe { A::get_unchecked::<u8>(off + i as u64) };
             print!("{}", BrightBlue.paint(format!("{:02x} ", *d)));
+            if i % 16 == 15 && i + 1 < len {
+                println!();
+                print!("{:>21}", " ");
+            }
+        }
+
+        println!();
+    }
+}
+
+#[cfg(all(feature = "verbose", not(feature = "colors")))]
+fn dump_data<A: MemPool>(tag: &str, off: u64, len: usize) {
+    if *crate::utils::VERBOSE {
+        print!("{:<8} {:>10}  ", A::name().to_owned() + ":", tag,);
+        for i in 0..len {
+            let d = unsafe { A::get_unchecked::<u8>(off + i as u64) };
+            print!("{:02x} ", *d);
             if i % 16 == 15 && i + 1 < len {
                 println!();
                 print!("{:>21}", " ");
