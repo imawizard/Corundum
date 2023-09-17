@@ -13,7 +13,7 @@ static SCRATCHPAD_SIZE: LazyCell<usize> = LazyCell::new(|| {
     lib::env::var("SPD_SIZE")
         .unwrap_or("1024".to_string())
         .parse::<usize>()
-        .expect("RECOVERY_INFO should be an unsigned integer")
+        .expect("SPD_SIZE should be an unsigned integer")
 });
 
 struct RawPtr(*mut u8);

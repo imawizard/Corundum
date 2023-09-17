@@ -216,21 +216,39 @@ pub mod lib {
         }
 
         pub mod env {
-            #[derive(Debug)]
-            pub struct OsStr;
+            use lib::ffi::{CStr, CString};
+            use lib::ptr;
 
-            impl OsStr {
-                pub fn into_string(self) -> Result<super::String, Self> {
-                    Err(self)
+            pub fn var(key: &str) -> Result<super::String, VarError> {
+                match var_os(key) {
+                    Some(s) => s.into_string().map_err(|_| VarError::NotUnicode),
+                    None => Err(VarError::NotPresent),
                 }
             }
 
-            pub fn var(_key: &str) -> Result<super::String, ()> {
-                Err(())
+            pub fn var_os(key: &str) -> Option<CString> {
+                let name = CString::new(key).ok()?;
+                let val = unsafe { ffi::getenv(name.as_ptr()) };
+
+                if val != ptr::null() {
+                    Some(unsafe { CStr::from_ptr(val) }.to_owned())
+                } else {
+                    None
+                }
             }
 
-            pub fn var_os(_key: &str) -> Option<OsStr> {
-                None
+            #[derive(Debug)]
+            pub enum VarError {
+                NotPresent,
+                NotUnicode,
+            }
+
+            mod ffi {
+                use lib::ffi::c_char;
+
+                extern "C" {
+                    pub fn getenv(name: *const c_char) -> *const c_char;
+                }
             }
         }
 
