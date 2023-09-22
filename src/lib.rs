@@ -133,7 +133,6 @@ pub mod ll;
 pub mod prc;
 pub mod ptr;
 pub mod stat;
-#[cfg(feature = "std")]
 pub mod stl;
 pub mod stm;
 pub mod sync;

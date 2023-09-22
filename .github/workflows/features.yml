@@ -51,10 +51,10 @@ jobs:
         - pthreads
         - replace_with_log
         - stat_log
-        #- stat_footprint
+        - stat_footprint
         - stat_perf
         - stat_print_flushes
-        #- verbose
+        - verbose
     steps:
     - uses: actions/checkout@v3
     - name: Build
